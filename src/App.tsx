@@ -95,8 +95,10 @@ export default function App() {
         </div>
 
         <div className="top-actions">
-          <button className="lang"
-            onClick={() => setLanguage(ar ? 'en' : 'ar')}>
+          <button
+            className="lang"
+            onClick={() => setLanguage(ar ? 'en' : 'ar')}
+          >
             {ar ? 'English' : 'العربية'}
             <ChevronDown size={14} />
           </button>
@@ -107,12 +109,15 @@ export default function App() {
       <div className="layout">
 
         <aside className="sidebar">
-          <button className="new-project" onClick={() => {
-            setPrompt('');
-            setResult('');
-            setError('');
-            setTab('preview');
-          }}>
+          <button
+            className="new-project"
+            onClick={() => {
+              setPrompt('');
+              setResult('');
+              setError('');
+              setTab('preview');
+            }}
+          >
             <Plus size={17} />
             {ar ? 'مشروع جديد' : 'New project'}
           </button>
@@ -274,7 +279,9 @@ export default function App() {
           {result && (
             <div className="notice">
               <Sparkles size={16} />
-              {ar ? 'وصلت نتيجة الذكاء الاصطناعي بنجاح.' : 'AI response received successfully.'}
+              {ar
+                ? 'وصلت نتيجة الذكاء الاصطناعي بنجاح.'
+                : 'AI response received successfully.'}
             </div>
           )}
 
@@ -321,17 +328,19 @@ export default function App() {
                 </div>
 
               ) : result && tab === 'code' ? (
-                <pre style={{
-                  whiteSpace: 'pre-wrap',
-                  overflowWrap: 'anywhere',
-                  textAlign: 'start',
-                  direction: 'auto',
-                  padding: '20px',
-                  maxHeight: '600px',
-                  overflowY: 'auto',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}>
+                <pre
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    overflowWrap: 'anywhere',
+                    textAlign: 'start',
+                    direction: ar ? 'rtl' : 'ltr',
+                    padding: '20px',
+                    maxHeight: '600px',
+                    overflowY: 'auto',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
+                >
                   {result}
                 </pre>
 
