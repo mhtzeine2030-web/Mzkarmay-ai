@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt } = req.body || {};
+    const prompt = req.body?.prompt;
 
     if (!prompt || typeof prompt !== "string") {
       return res.status(400).json({
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     if (!apiKey) {
       return res.status(500).json({
-        error: "مفتاح Gemini غير موجود في إعدادات Vercel"
+        error: "مفتاح Gemini غير موجود في Vercel"
       });
     }
 
@@ -36,22 +36,24 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt }]
+              parts: [
+                { text: prompt }
+              ]
             }
           ]
         })
       }
     );
 
-    const responseText = await response.text();
+    const text = await response.text();
 
     let data;
 
     try {
-      data = JSON.parse(responseText);
+      data = JSON.parse(text);
     } catch {
       return res.status(502).json({
-        error: "استقبل الموقع رداً غير صالح من Gemini"
+        error: "رد Gemini غير صالح"
       });
     }
 
@@ -61,14 +63,13 @@ export default async function handler(req, res) {
       });
     }
 
-    const result =
-      data.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("\n");
+    const result = data.candidates?.[0]?.content?.parts
+      ?.map(part => part.text || "")
+      .join("\n");
 
     if (!result) {
       return res.status(502).json({
-        error: "لم يُرجع Gemini نتيجة"
+        error: "لم تصل نتيجة من Gemini"
       });
     }
 
@@ -76,7 +77,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     return res.status(500).json({
-      error: "حدث خطأ أثناء الاتصال بالذكاء الاصطناعي"
+      error: "حدث خطأ أثناء الاتصال بالخادم"
     });
   }
 }
