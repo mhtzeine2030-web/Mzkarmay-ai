@@ -37,25 +37,32 @@ export default function App() {
 
       const responseText = await response.text();
 
-      let data;
+      let data: any;
 
       try {
         data = JSON.parse(responseText);
       } catch {
         throw new Error(
-          'رد الخادم ليس JSON: ' + responseText.slice(0, 300)
+          `رد الخادم غير صالح (${response.status}): ${responseText.slice(0, 250)}`
         );
       }
 
       if (!response.ok) {
-        throw new Error(
-          data.error || `خطأ في الخادم: ${response.status}`
-        );
+        const errorMessage =
+          typeof data.error === 'string'
+            ? data.error
+            : data.error?.message ||
+              JSON.stringify(data.error || data) ||
+              `خطأ في الخادم: ${response.status}`;
+
+        throw new Error(errorMessage);
       }
 
-      if (!data.result || typeof data.result !== 'string') {
+      if (typeof data.result !== 'string' || !data.result.trim()) {
         throw new Error(
-          data.error || 'لم تصل نتيجة من Gemini'
+          typeof data.error === 'string'
+            ? data.error
+            : 'لم تصل نتيجة من Gemini'
         );
       }
 
@@ -66,7 +73,7 @@ export default function App() {
       setError(
         err instanceof Error
           ? err.message
-          : 'تعذر الاتصال بالذكاء الاصطناعي'
+          : String(err)
       );
     } finally {
       setLoading(false);
@@ -102,7 +109,6 @@ export default function App() {
 
   return (
     <div className="app" dir={ar ? 'rtl' : 'ltr'}>
-
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">
@@ -125,7 +131,6 @@ export default function App() {
       </header>
 
       <div className="layout">
-
         <aside className="sidebar">
           <button
             className="new-project"
@@ -178,7 +183,6 @@ export default function App() {
         </aside>
 
         <main className="main">
-
           <div className="welcome">
             <div className="eyebrow">
               <span className="pulse"></span>
@@ -197,7 +201,6 @@ export default function App() {
           </div>
 
           <section className="builder">
-
             <div className="prompt-head">
               <div className="spark-circle">
                 <WandSparkles size={18} />
@@ -232,7 +235,6 @@ export default function App() {
             />
 
             <div className="prompt-footer">
-
               <button className="attach" type="button">
                 <Paperclip size={16} />
                 {ar ? 'إرفاق' : 'Attach'}
@@ -254,7 +256,6 @@ export default function App() {
                   ? (ar ? 'جارٍ الإنشاء...' : 'Generating...')
                   : (ar ? 'إنشاء' : 'Build')}
               </button>
-
             </div>
           </section>
 
@@ -304,7 +305,6 @@ export default function App() {
           )}
 
           <div className="workspace">
-
             <div className="workspace-bar">
               <div>
                 <span className="dot"></span>
@@ -337,14 +337,12 @@ export default function App() {
             </div>
 
             <div className="canvas">
-
               {loading ? (
                 <div className="empty-preview">
                   <Sparkles size={27} />
                   <b>{ar ? 'الذكاء الاصطناعي يعمل...' : 'AI is working...'}</b>
                   <p>{ar ? 'يرجى الانتظار قليلاً.' : 'Please wait.'}</p>
                 </div>
-
               ) : result && tab === 'code' ? (
                 <pre
                   style={{
@@ -361,7 +359,6 @@ export default function App() {
                 >
                   {result}
                 </pre>
-
               ) : result ? (
                 <div className="empty-preview">
                   <div className="preview-icon">
@@ -379,7 +376,6 @@ export default function App() {
                     {ar ? 'عرض النتيجة' : 'View result'}
                   </button>
                 </div>
-
               ) : (
                 <div className="empty-preview">
                   <div className="preview-icon">
@@ -395,7 +391,6 @@ export default function App() {
                   </p>
                 </div>
               )}
-
             </div>
           </div>
 
@@ -403,7 +398,6 @@ export default function App() {
             © 2026 MZKarmay AI
             <span>{ar ? 'صُنع لبناء أفكارك' : 'Built for your ideas'}</span>
           </footer>
-
         </main>
       </div>
     </div>
