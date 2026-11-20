@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import {
   Sparkles, Plus, Globe2, Smartphone, LayoutDashboard,
@@ -26,19 +27,36 @@ export default function App() {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({
+          prompt: prompt.trim()
+        })
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Generation failed');
+      let data;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          'رد الخادم ليس JSON: ' + responseText.slice(0, 300)
+        );
       }
 
-      if (!data.result) {
-        throw new Error('لم تصل نتيجة من Gemini');
+      if (!response.ok) {
+        throw new Error(
+          data.error || `خطأ في الخادم: ${response.status}`
+        );
+      }
+
+      if (!data.result || typeof data.result !== 'string') {
+        throw new Error(
+          data.error || 'لم تصل نتيجة من Gemini'
+        );
       }
 
       setResult(data.result);
@@ -215,7 +233,7 @@ export default function App() {
 
             <div className="prompt-footer">
 
-              <button className="attach">
+              <button className="attach" type="button">
                 <Paperclip size={16} />
                 {ar ? 'إرفاق' : 'Attach'}
               </button>
@@ -312,7 +330,7 @@ export default function App() {
                 </button>
               </div>
 
-              <button className="publish">
+              <button className="publish" type="button">
                 <Rocket size={14} />
                 {ar ? 'نشر' : 'Publish'}
               </button>
