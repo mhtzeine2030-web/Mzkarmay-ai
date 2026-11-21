@@ -61,6 +61,7 @@ export default function App() {
   const [authBusy, setAuthBusy] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
   const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
+  const [siteAnalytics, setSiteAnalytics] = useState<Array<{ project_id: string; title: string; pathname: string; visits: number }>>([]);
 
   useEffect(() => {
     try {
@@ -151,6 +152,30 @@ export default function App() {
     void loadAccountProjects();
     return () => { active = false; };
   }, [authUser?.id]);
+
+  useEffect(() => {
+    if (!authUser) {
+      setSiteAnalytics([]);
+      return;
+    }
+    let active = true;
+    const loadSiteAnalytics = async () => {
+      const { data, error } = await supabase.rpc('get_my_site_analytics');
+      if (!active) return;
+      if (error) {
+        console.error('Could not load website analytics:', error);
+        return;
+      }
+      setSiteAnalytics((data || []).map((row: any) => ({
+        project_id: row.project_id,
+        title: row.title || (ar ? 'موقع بدون عنوان' : 'Untitled website'),
+        pathname: row.pathname,
+        visits: Number(row.visits || 0)
+      })));
+    };
+    void loadSiteAnalytics();
+    return () => { active = false; };
+  }, [authUser?.id, projects]);
 
   const handleAuth = async () => {
     if (!authEmail.trim() || !authPassword || authBusy) return;
@@ -703,6 +728,7 @@ ${html}`
                 <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'إجمالي المشاريع' : 'Total projects'}</small><div style={{ fontSize: 32, fontWeight: 800, marginTop: 8 }}>{projects.length}</div></div>
                 <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'المواقع المنشورة' : 'Published websites'}</small><div style={{ fontSize: 32, fontWeight: 800, marginTop: 8 }}>{projects.filter(project => !!project.publishedPathname).length}</div></div>
                 <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'الحساب' : 'Account'}</small><div style={{ fontSize: 18, fontWeight: 700, marginTop: 12 }}>{authUser ? (ar ? 'متصل' : 'Connected') : (ar ? 'غير مسجل' : 'Guest')}</div></div>
+                <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'إجمالي الزيارات' : 'Total visits'}</small><div style={{ fontSize: 32, fontWeight: 800, marginTop: 8 }}>{siteAnalytics.reduce((total, site) => total + site.visits, 0).toLocaleString(ar ? 'ar' : 'en')}</div></div>
               </div>
               <div className="workspace" style={{ marginBottom: 18 }}>
                 <div className="workspace-bar"><div><LayoutDashboard size={16} /><b>{ar ? 'أحدث مشاريعك' : 'Recent projects'}</b><small> / {projects.length}</small></div><button type="button" onClick={() => { setShowDashboard(false); setShowProjects(true); }}>{ar ? 'كل المشاريع' : 'All projects'}</button></div>
@@ -721,6 +747,7 @@ ${html}`
                   {projects.filter(project => !!project.publishedPathname).length === 0 ? <p>{ar ? 'لم تنشر أي موقع بعد.' : 'You have not published a website yet.'}</p> : projects.filter(project => !!project.publishedPathname).slice(0, 5).map(project => (
                     <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
                       <b style={{ overflowWrap: 'anywhere' }}>{project.title}</b>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 180px' }}><b style={{ overflowWrap: 'anywhere' }}>{project.title}</b><small style={{ color: '#64748b' }}>{ar ? 'الزيارات: ' : 'Visits: '}{(siteAnalytics.find(item => item.pathname === project.publishedPathname)?.visits || 0).toLocaleString(ar ? 'ar' : 'en')}</small></div>
                       <button type="button" onClick={() => { openProject(project); setShowDashboard(false); }}>{ar ? 'إدارة الموقع' : 'Manage website'}</button>
                     </div>
                   ))}
