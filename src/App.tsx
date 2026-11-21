@@ -50,6 +50,7 @@ export default function App() {
   const [projects, setProjects] = useState<Array<{ id: string; cloudId?: string; title: string; html: string; prompt: string; updatedAt: string; publishedPathname?: string }>>([]);
   const [currentProjectId, setCurrentProjectId] = useState('');
   const [showProjects, setShowProjects] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [importingSite, setImportingSite] = useState('');
   const [currentPublishedPathname, setCurrentPublishedPathname] = useState('');
   const [updatingPublished, setUpdatingPublished] = useState(false);
@@ -646,6 +647,11 @@ ${html}`
             {ar ? 'مساحة العمل' : 'WORKSPACE'}
           </div>
 
+          <a className={showDashboard ? 'nav active' : 'nav'} href="#dashboard" onClick={e => { e.preventDefault(); setShowDashboard(true); setShowProjects(false); setShowPublished(false); }}>
+            <LayoutDashboard size={17} />
+            {ar ? 'لوحة التحكم' : 'Dashboard'}
+          </a>
+
           <a className={showProjects ? 'nav active' : 'nav'} href="#my-projects" onClick={e => { e.preventDefault(); setShowProjects(true); }}>
             <LayoutDashboard size={17} />
             {ar ? 'المشاريع' : 'Projects'}
@@ -686,6 +692,44 @@ ${html}`
         </aside>
 
         <main className="main">
+          {showDashboard && (
+            <section id="dashboard" style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 22 }}>
+                <div className="eyebrow"><span className="pulse"></span>{ar ? 'مساحة حسابك' : 'YOUR ACCOUNT'}</div>
+                <h1 style={{ marginBottom: 8 }}>{ar ? 'لوحة التحكم' : 'Dashboard'}</h1>
+                <p style={{ margin: 0, color: '#64748b' }}>{authUser ? authUser.email : (ar ? 'سجّل الدخول لمزامنة مشاريعك عبر أجهزتك.' : 'Sign in to sync your projects across devices.')}</p>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
+                <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'إجمالي المشاريع' : 'Total projects'}</small><div style={{ fontSize: 32, fontWeight: 800, marginTop: 8 }}>{projects.length}</div></div>
+                <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'المواقع المنشورة' : 'Published websites'}</small><div style={{ fontSize: 32, fontWeight: 800, marginTop: 8 }}>{projects.filter(project => !!project.publishedPathname).length}</div></div>
+                <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'الحساب' : 'Account'}</small><div style={{ fontSize: 18, fontWeight: 700, marginTop: 12 }}>{authUser ? (ar ? 'متصل' : 'Connected') : (ar ? 'غير مسجل' : 'Guest')}</div></div>
+              </div>
+              <div className="workspace" style={{ marginBottom: 18 }}>
+                <div className="workspace-bar"><div><LayoutDashboard size={16} /><b>{ar ? 'أحدث مشاريعك' : 'Recent projects'}</b><small> / {projects.length}</small></div><button type="button" onClick={() => { setShowDashboard(false); setShowProjects(true); }}>{ar ? 'كل المشاريع' : 'All projects'}</button></div>
+                <div style={{ padding: 18 }}>
+                  {projects.length === 0 ? <p>{ar ? 'لا توجد مشاريع محفوظة حتى الآن. ابدأ بإنشاء مشروع جديد.' : 'No saved projects yet. Start by creating a new project.'}</p> : projects.slice(0, 5).map(project => (
+                    <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <div style={{ minWidth: 0, flex: '1 1 180px' }}><b style={{ display: 'block', overflowWrap: 'anywhere' }}>{project.title}</b><small style={{ color: '#64748b' }}>{project.publishedPathname ? (ar ? 'موقع منشور' : 'Published website') : (ar ? 'مشروع محفوظ' : 'Saved project')}</small></div>
+                      <button type="button" onClick={() => { openProject(project); setShowDashboard(false); }}>{ar ? 'فتح المشروع' : 'Open project'}</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="workspace">
+                <div className="workspace-bar"><div><Globe2 size={16} /><b>{ar ? 'مواقعك المنشورة' : 'Your published websites'}</b></div><button type="button" onClick={() => { setShowDashboard(false); void loadPublishedSites(); }}>{ar ? 'عرض المواقع' : 'View websites'}</button></div>
+                <div style={{ padding: 18 }}>
+                  {projects.filter(project => !!project.publishedPathname).length === 0 ? <p>{ar ? 'لم تنشر أي موقع بعد.' : 'You have not published a website yet.'}</p> : projects.filter(project => !!project.publishedPathname).slice(0, 5).map(project => (
+                    <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <b style={{ overflowWrap: 'anywhere' }}>{project.title}</b>
+                      <button type="button" onClick={() => { openProject(project); setShowDashboard(false); }}>{ar ? 'إدارة الموقع' : 'Manage website'}</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button type="button" className="send" style={{ marginTop: 18 }} onClick={() => { setShowDashboard(false); localStorage.removeItem('mzkarmay-ai-draft'); setCurrentProjectId(''); setCurrentPublishedPathname(''); setPrompt(''); setResult(''); setHtml(''); setError(''); setTab('preview'); }}>{ar ? '＋ إنشاء مشروع جديد' : '＋ Create new project'}</button>
+            </section>
+          )}
+          <div style={{ display: showDashboard ? 'none' : 'block' }}>
           <div className="welcome">
             <div className="eyebrow">
               <span className="pulse"></span>
@@ -1127,6 +1171,8 @@ ${html}`
               </section>
             </div>
           )}
+
+          </div>
 
           <footer>
             © 2026 MZKarmay AI
