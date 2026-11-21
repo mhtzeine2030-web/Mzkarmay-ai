@@ -45,9 +45,17 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
+  const [projects, setProjects] = useState<Array<{ id: string; title: string; html: string; prompt: string; updatedAt: string }>>([]);
+  const [currentProjectId, setCurrentProjectId] = useState('');
+  const [showProjects, setShowProjects] = useState(false);
 
   useEffect(() => {
     try {
+      const savedProjects = localStorage.getItem('mzkarmay-ai-projects');
+      if (savedProjects) {
+        const parsedProjects = JSON.parse(savedProjects);
+        if (Array.isArray(parsedProjects)) setProjects(parsedProjects);
+      }
       const saved = localStorage.getItem('mzkarmay-ai-draft');
       if (saved) {
         const draft = JSON.parse(saved);
@@ -218,11 +226,14 @@ ${html}`
   const saveDraft = () => {
     if (!html.trim()) return;
     try {
-      localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({
-        html,
-        prompt,
-        savedAt: new Date().toISOString()
-      }));
+      const now = new Date().toISOString();
+      const id = currentProjectId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `project-${Date.now()}`);
+      const project = { id, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now };
+      const nextProjects = [project, ...projects.filter(item => item.id !== id)];
+      localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
+      localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html, prompt, savedAt: now }));
+      setProjects(nextProjects);
+      setCurrentProjectId(id);
       setDraftSaved(true);
       setPublishError('');
     } catch (error) {
@@ -230,6 +241,31 @@ ${html}`
       setPublishError(ar
         ? 'تعذر حفظ المسودة. قد تكون مساحة التخزين ممتلئة.'
         : 'Could not save the draft. Browser storage may be full.');
+    }
+  };
+
+  const openProject = (project: typeof projects[number]) => {
+    setCurrentProjectId(project.id);
+    setHtml(project.html);
+    setPrompt(project.prompt);
+    setResult(project.html);
+    setTab('preview');
+    setDraftSaved(true);
+    setShowProjects(false);
+    setError('');
+  };
+
+  const deleteProject = (id: string) => {
+    const nextProjects = projects.filter(project => project.id !== id);
+    try {
+      localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
+      setProjects(nextProjects);
+      if (currentProjectId === id) {
+        setCurrentProjectId('');
+        setDraftSaved(false);
+      }
+    } catch {
+      setPublishError(ar ? 'تعذر حذف المشروع من التخزين.' : 'Could not delete the project.');
     }
   };
 
@@ -323,7 +359,8 @@ ${html}`
           <button
             className="new-project"
             onClick={() => {
-              localStorage.removeItem('mzkarmay-ai-draft');
+              setCurrentProjectId('');
+              setShowProjects(false);
               setDraftSaved(false);
               setPrompt('');
               setResult('');
@@ -340,7 +377,7 @@ ${html}`
             {ar ? 'مساحة العمل' : 'WORKSPACE'}
           </div>
 
-          <a className="nav active">
+          <a className={showProjects ? 'nav active' : 'nav'} href="#my-projects" onClick={e => { e.preventDefault(); setShowProjects(true); }}>
             <LayoutDashboard size={17} />
             {ar ? 'المشاريع' : 'Projects'}
           </a>
@@ -526,6 +563,31 @@ ${html}`
               {ar ? 'تعذر النشر: ' : 'Publishing error: '}
               {publishError}
             </div>
+          )}
+
+          {showProjects && (
+            <section id="my-projects" className="workspace" style={{ marginBottom: 20 }}>
+              <div className="workspace-bar">
+                <div><LayoutDashboard size={16} /><b>{ar ? 'مشاريعي المحفوظة' : 'My saved projects'}</b><small> / {projects.length}</small></div>
+                <button type="button" onClick={() => setShowProjects(false)}>{ar ? 'إغلاق' : 'Close'}</button>
+              </div>
+              <div style={{ padding: 18 }}>
+                {projects.length === 0 ? (
+                  <p>{ar ? 'لا توجد مشاريع محفوظة. افتح مشروعاً واضغط «حفظ التعديلات» لإضافته هنا.' : 'No saved projects yet. Open a project and click Save changes to add it here.'}</p>
+                ) : projects.map(project => (
+                  <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ minWidth: 0, flex: '1 1 180px' }}>
+                      <b style={{ display: 'block', overflowWrap: 'anywhere' }}>{project.title}</b>
+                      <small>{ar ? 'آخر حفظ: ' : 'Last saved: '}{new Date(project.updatedAt).toLocaleString(ar ? 'ar' : 'en')}</small>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => openProject(project)}>{ar ? 'فتح وتعديل' : 'Open & edit'}</button>
+                      <button type="button" onClick={() => { if (window.confirm(ar ? 'هل تريد حذف هذا المشروع المحفوظ؟' : 'Delete this saved project?')) deleteProject(project.id); }}>{ar ? 'حذف' : 'Delete'}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
 
           {showPublished && (
