@@ -64,7 +64,7 @@ export default async function handler(req, res) {
 
   const { html, title, prompt, projectId } = req.body || {};
 
-  if (typeof html !== "string" || !html.trim() || !/<html[\\s>]|<!doctype\\s+html/i.test(html)) {
+  if (typeof html !== "string" || !html.trim() || !/<html[\s>]|<!doctype\s+html/i.test(html)) {
     return send(res, 400, { error: "A complete HTML document is required." });
   }
   if (Buffer.byteLength(html, "utf8") > MAX_HTML_BYTES) {
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
   }
 
   const safeTitle = typeof title === "string"
-    ? title.replace(/[<>\\r\\n]/g, "").trim().slice(0, 80)
+    ? title.replace(/[<>\r\n]/g, "").trim().slice(0, 80)
     : "";
   const safePrompt = typeof prompt === "string" ? prompt.slice(0, 10000) : "";
   const id = typeof projectId === "string" && /^[0-9a-f-]{36}$/i.test(projectId)
