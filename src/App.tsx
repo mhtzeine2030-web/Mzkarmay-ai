@@ -49,6 +49,8 @@ export default function App() {
   const [currentProjectId, setCurrentProjectId] = useState('');
   const [showProjects, setShowProjects] = useState(false);
   const [importingSite, setImportingSite] = useState('');
+  const [currentPublishedPathname, setCurrentPublishedPathname] = useState('');
+  const [updatingPublished, setUpdatingPublished] = useState(false);
 
   useEffect(() => {
     try {
@@ -244,7 +246,7 @@ ${html}`
     try {
       const now = new Date().toISOString();
       const id = currentProjectId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `project-${Date.now()}`);
-      const project = { id, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now };
+      const project = { id, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
       const nextProjects = [project, ...projects.filter(item => item.id !== id)];
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
       localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html, prompt, savedAt: now }));
@@ -275,12 +277,13 @@ ${html}`
       const now = new Date().toISOString();
       const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `imported-${Date.now()}`;
       const title = ar ? 'موقع مستورد ' + new Date(now).toLocaleDateString('ar') : 'Imported website ' + new Date(now).toLocaleDateString('en');
-      const project = { id, title, html: importedHtml, prompt: title, updatedAt: now };
+      const project = { id, title, html: importedHtml, prompt: title, updatedAt: now, publishedPathname: site.pathname };
       const nextProjects = [project, ...projects];
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
       localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html: importedHtml, prompt: title, savedAt: now }));
       setProjects(nextProjects);
       setCurrentProjectId(id);
+      setCurrentPublishedPathname(site.pathname);
       setHtml(importedHtml);
       setPrompt(title);
       setResult(importedHtml);
@@ -297,6 +300,7 @@ ${html}`
 
   const openProject = (project: typeof projects[number]) => {
     setCurrentProjectId(project.id);
+    setCurrentPublishedPathname(project.publishedPathname || '');
     setHtml(project.html);
     setPrompt(project.prompt);
     setResult(project.html);
@@ -304,6 +308,33 @@ ${html}`
     setDraftSaved(true);
     setShowProjects(false);
     setError('');
+  };
+
+  const updatePublishedSite = async () => {
+    if (!html.trim() || !currentPublishedPathname || updatingPublished) return;
+    const secret = window.prompt(ar ? 'أدخل كلمة مرور تحديث المواقع التي أعددتها في Vercel.' : 'Enter the site update password configured in Vercel.');
+    if (!secret) return;
+    setUpdatingPublished(true);
+    setPublishError('');
+    try {
+      const response = await fetch('/api/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-site-update-key': secret },
+        body: JSON.stringify({ pathname: currentPublishedPathname, html })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Website update failed.');
+      const now = new Date().toISOString();
+      const updatedProjects = projects.map(project => project.id === currentProjectId ? { ...project, html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname } : project);
+      localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(updatedProjects));
+      setProjects(updatedProjects);
+      setPublishedUrl(data.url);
+      setPublishError(ar ? 'تم تحديث الموقع على الرابط نفسه. قد يستغرق ظهور التغيير دقيقة.' : 'Website updated at the same URL. Changes may take up to a minute to appear.');
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUpdatingPublished(false);
+    }
   };
 
   const deleteProject = (id: string) => {
@@ -412,6 +443,7 @@ ${html}`
             onClick={() => {
               localStorage.removeItem('mzkarmay-ai-draft');
               setCurrentProjectId('');
+              setCurrentPublishedPathname('');
               setShowProjects(false);
               setDraftSaved(false);
               setPrompt('');
@@ -758,6 +790,12 @@ ${html}`
               >
                 {ar ? (draftSaved ? 'تم حفظ المسودة' : 'حفظ التعديلات') : (draftSaved ? 'Draft saved' : 'Save changes')}
               </button>
+              {currentPublishedPathname && (
+                <button type="button" className="publish" onClick={updatePublishedSite} disabled={!html || updatingPublished}>
+                  <Rocket size={14} />
+                  {updatingPublished ? (ar ? 'جارٍ التحديث...' : 'Updating...') : (ar ? 'تحديث الموقع المنشور' : 'Update published site')}
+                </button>
+              )}
               <button
                 className="publish"
                 type="button"
