@@ -27,8 +27,7 @@ export default async function handler(req, res) {
     "gemini-3.5-flash-lite"
   ];
 
-  let lastError = "Gemini service is unavailable";
-  let lastStatus = 503;
+  let errors = [];
 
   for (const model of models) {
     try {
@@ -40,7 +39,7 @@ export default async function handler(req, res) {
             "Content-Type": "application/json",
             "x-goog-api-key": apiKey
           },
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(10000),
           body: JSON.stringify({
             contents: [
               {
@@ -72,36 +71,38 @@ export default async function handler(req, res) {
           });
         }
 
-        lastError = "Gemini returned an empty response";
-        lastStatus = 502;
+        errors.push(`${model}: Empty response`);
         continue;
       }
 
-      lastError =
-        data.error?.message || "Gemini API error";
-      lastStatus = response.status;
+      const message = data.error?.message || "API error";
 
-      console.error("Gemini error:", model, lastStatus, lastError);
+      errors.push(`${model}: ${response.status} - ${message}`);
 
-      if (![429, 500, 503, 504].includes(response.status)) {
+      console.error("Gemini API error:", model, response.status, message);
+
+      if (![429, 500, 502, 503, 504].includes(response.status)) {
         return res.status(response.status).json({
-          error: lastError
+          error: message
         });
       }
 
     } catch (error) {
-      lastError = error.name === "TimeoutError"
-        ? `${model} timed out`
-        : error.message;
+      const message =
+        error.name === "TimeoutError" ||
+        error.name === "AbortError"
+          ? "Request timed out"
+          : error.message;
 
-      lastStatus = 504;
+      errors.push(`${model}: ${message}`);
 
-      console.error("Gemini request failed:", model, lastError);
+      console.error("Gemini request failed:", model, message);
     }
   }
 
-  return res.status(lastStatus).json({
-    error: "Both Gemini models are currently unavailable. Please try again shortly.",
-    details: lastError
+  return res.status(503).json({
+    error: "Gemini is temporarily unavailable. Please try again.",
+    details: errors
   });
 }
+
