@@ -46,7 +46,7 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
-  const [projects, setProjects] = useState<Array<{ id: string; title: string; html: string; prompt: string; updatedAt: string; publishedPathname?: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; cloudId?: string; title: string; html: string; prompt: string; updatedAt: string; publishedPathname?: string }>>([]);
   const [currentProjectId, setCurrentProjectId] = useState('');
   const [showProjects, setShowProjects] = useState(false);
   const [importingSite, setImportingSite] = useState('');
@@ -82,7 +82,7 @@ export default function App() {
           if (!matchingProject) {
             const migratedProject = { id: `restored-${Date.now()}`, title: restoredPrompt.trim().slice(0, 80) || 'مشروع محفوظ', html: draft.html, prompt: restoredPrompt, updatedAt: draft.savedAt || new Date().toISOString() };
             const nextProjects = [migratedProject, ...(Array.isArray(savedProjectsNow) ? savedProjectsNow : [])];
-            localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
+            localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));\n      if (authUser && cloudId) {\n        const { error } = await supabase.from('user_projects').upsert({\n          id: cloudId, user_id: authUser.id, title: project.title, html: project.html, prompt: project.prompt, published_pathname: project.publishedPathname || null\n        }, { onConflict: 'id' });\n        if (error) throw error;\n      }
             setProjects(nextProjects);
             setCurrentProjectId(migratedProject.id);
           } else {
@@ -115,6 +115,40 @@ export default function App() {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+    let active = true;
+    const loadAccountProjects = async () => {
+      setPublishError('');
+      const { data, error } = await supabase
+        .from('user_projects')
+        .select('id, title, html, prompt, published_pathname')
+        .eq('user_id', authUser.id)
+        .order('id', { ascending: false });
+      if (!active) return;
+      if (error) {
+        setPublishError(ar ? 'تعذر تحميل مشاريع الحساب: ' + error.message : 'Could not load account projects: ' + error.message);
+        return;
+      }
+      const accountProjects = (data || []).map((row: any) => ({
+        id: row.id,
+        cloudId: row.id,
+        title: row.title || (ar ? 'مشروع بدون عنوان' : 'Untitled project'),
+        html: row.html || '',
+        prompt: row.prompt || '',
+        updatedAt: new Date().toISOString(),
+        publishedPathname: row.published_pathname || undefined
+      }));
+      setProjects(accountProjects);
+      localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(accountProjects));
+      if (currentProjectId && !accountProjects.some(project => project.id === currentProjectId)) {
+        setCurrentProjectId('');
+      }
+    };
+    void loadAccountProjects();
+    return () => { active = false; };
+  }, [authUser?.id]);
 
   const handleAuth = async () => {
     if (!authEmail.trim() || !authPassword || authBusy) return;
@@ -154,6 +188,15 @@ export default function App() {
     if (!error) {
       setAuthPassword('');
       setAuthOpen(false);
+      setProjects([]);
+      setCurrentProjectId('');
+      setCurrentPublishedPathname('');
+      setHtml('');
+      setResult('');
+      setPrompt('');
+      setDraftSaved(false);
+      localStorage.removeItem('mzkarmay-ai-projects');
+      localStorage.removeItem('mzkarmay-ai-draft');
     }
   };
 
@@ -308,12 +351,12 @@ ${html}`
     }
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     if (!html.trim()) return;
     try {
       const now = new Date().toISOString();
       const id = currentProjectId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `project-${Date.now()}`);
-      const project = { id, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
+      const existing = projects.find(item => item.id === id);\n      const cloudId = existing?.cloudId || (authUser ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : id) : undefined);\n      const project = { id, cloudId, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
       const nextProjects = [project, ...projects.filter(item => item.id !== id)];
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
       localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html, prompt, savedAt: now }));
@@ -404,17 +447,22 @@ ${html}`
     }
   };
 
-  const deleteProject = (id: string) => {
-    const nextProjects = projects.filter(project => project.id !== id);
+  const deleteProject = async (id: string) => {
+    const target = projects.find(project => project.id === id);
     try {
+      if (authUser && target?.cloudId) {
+        const { error } = await supabase.from('user_projects').delete().eq('id', target.cloudId).eq('user_id', authUser.id);
+        if (error) throw error;
+      }
+      const nextProjects = projects.filter(project => project.id !== id);
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
       setProjects(nextProjects);
       if (currentProjectId === id) {
         setCurrentProjectId('');
         setDraftSaved(false);
       }
-    } catch {
-      setPublishError(ar ? 'تعذر حذف المشروع من التخزين.' : 'Could not delete the project.');
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : (ar ? 'تعذر حذف المشروع.' : 'Could not delete project.'));
     }
   };
 
