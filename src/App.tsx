@@ -62,6 +62,10 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
   const [siteAnalytics, setSiteAnalytics] = useState<Array<{ project_id: string; title: string; pathname: string; visits: number }>>([]);
+  const [selectedAnalyticsSite, setSelectedAnalyticsSite] = useState<{ project_id: string; title: string; pathname: string } | null>(null);
+  const [siteVisitHistory, setSiteVisitHistory] = useState<Array<{ visit_date: string; visits: number }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
 
   useEffect(() => {
     try {
@@ -228,6 +232,30 @@ export default function App() {
   };
 
   const ar = language === 'ar';
+
+  const loadSiteVisitHistory = async (project: { id: string; title: string; publishedPathname?: string }) => {
+    if (!project.publishedPathname) return;
+    setSelectedAnalyticsSite({
+      project_id: project.id,
+      title: project.title,
+      pathname: project.publishedPathname
+    });
+    setHistoryLoading(true);
+    setHistoryError('');
+    setSiteVisitHistory([]);
+    const { data, error } = await supabase.rpc('get_my_site_visit_history', {
+      p_project_id: project.id
+    });
+    if (error) {
+      setHistoryError(error.message);
+    } else {
+      setSiteVisitHistory((data || []).map((row: any) => ({
+        visit_date: row.visit_date,
+        visits: Number(row.visits || 0)
+      })));
+    }
+    setHistoryLoading(false);
+  };
 
   const submit = async () => {
     if (!prompt.trim() || loading) return;
@@ -747,11 +775,53 @@ ${html}`
                   {projects.filter(project => !!project.publishedPathname).length === 0 ? <p>{ar ? 'لم تنشر أي موقع بعد.' : 'You have not published a website yet.'}</p> : projects.filter(project => !!project.publishedPathname).slice(0, 5).map(project => (
                     <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 180px' }}><b style={{ overflowWrap: 'anywhere' }}>{project.title}</b><small style={{ color: '#64748b' }}>{ar ? 'الزيارات: ' : 'Visits: '}{(siteAnalytics.find(item => item.pathname === project.publishedPathname)?.visits || 0).toLocaleString(ar ? 'ar' : 'en')}</small></div>
-                      <button type="button" onClick={() => { openProject(project); setShowDashboard(false); }}>{ar ? 'إدارة الموقع' : 'Manage website'}</button>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        <button type="button" onClick={() => { openProject(project); setShowDashboard(false); }}>{ar ? 'إدارة الموقع' : 'Manage website'}</button>
+                        <button type="button" onClick={() => void loadSiteVisitHistory(project)}>{ar ? 'الإحصائيات' : 'Analytics'}</button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+              {selectedAnalyticsSite && (
+                <div className="workspace" style={{ marginTop: 18 }}>
+                  <div className="workspace-bar">
+                    <div><LayoutDashboard size={16} /><b>{ar ? 'إحصائيات الموقع' : 'Website analytics'}</b></div>
+                    <button type="button" onClick={() => { setSelectedAnalyticsSite(null); setSiteVisitHistory([]); setHistoryError(''); }}>{ar ? 'إغلاق' : 'Close'}</button>
+                  </div>
+                  <div style={{ padding: 18 }}>
+                    <b style={{ display: 'block', overflowWrap: 'anywhere', marginBottom: 6 }}>{selectedAnalyticsSite.title}</b>
+                    <small style={{ color: '#64748b', overflowWrap: 'anywhere' }}>{selectedAnalyticsSite.pathname}</small>
+                    <p style={{ color: '#64748b', marginTop: 10 }}>{ar ? 'عدد الزيارات اليومية خلال آخر 30 يوماً (حسب توقيت UTC).' : 'Daily visits for the last 30 days (UTC).'}</p>
+                    {historyLoading ? (
+                      <p>{ar ? 'جارٍ تحميل سجل الزيارات...' : 'Loading visit history...'}</p>
+                    ) : historyError ? (
+                      <p role="alert" style={{ color: '#b91c1c' }}>{ar ? 'تعذر تحميل السجل: ' : 'Could not load history: '}{historyError}</p>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'start' }}>
+                          <thead><tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                            <th style={{ padding: '10px 8px' }}>{ar ? 'التاريخ' : 'Date'}</th>
+                            <th style={{ padding: '10px 8px' }}>{ar ? 'عدد الزيارات' : 'Visits'}</th>
+                          </tr></thead>
+                          <tbody>
+                            {siteVisitHistory.slice().reverse().map(day => (
+                              <tr key={day.visit_date} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '9px 8px' }}>{new Date(day.visit_date + 'T00:00:00Z').toLocaleDateString(ar ? 'ar' : 'en')}</td>
+                                <td style={{ padding: '9px 8px', fontWeight: 700 }}>{day.visits.toLocaleString(ar ? 'ar' : 'en')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <button type="button" style={{ marginTop: 12 }} onClick={() => {
+                      const project = projects.find(item => item.id === selectedAnalyticsSite.project_id);
+                      if (project) void loadSiteVisitHistory(project);
+                    }}>{ar ? 'تحديث السجل' : 'Refresh history'}</button>
+                  </div>
+                </div>
+              )}
               <button type="button" className="send" style={{ marginTop: 18 }} onClick={() => { setShowDashboard(false); localStorage.removeItem('mzkarmay-ai-draft'); setCurrentProjectId(''); setCurrentPublishedPathname(''); setPrompt(''); setResult(''); setHtml(''); setError(''); setTab('preview'); }}>{ar ? '＋ إنشاء مشروع جديد' : '＋ Create new project'}</button>
             </section>
           )}
