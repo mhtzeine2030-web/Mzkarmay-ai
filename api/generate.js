@@ -1,4 +1,4 @@
- 
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -6,36 +6,34 @@ export default async function handler(req, res) {
     });
   }
 
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
-      return res.status(500).json({
-        error: "GEMINI_API_KEY is missing"
-      });
-    }
+  if (!apiKey) {
+    return res.status(500).json({
+      error: "GEMINI_API_KEY is missing"
+    });
+  }
 
-    const { prompt } = req.body || {};
+  const { prompt } = req.body || {};
 
-    if (!prompt || typeof prompt !== "string") {
-      return res.status(400).json({
-        error: "Prompt is required"
-      });
-    }
+  if (!prompt || typeof prompt !== "string") {
+    return res.status(400).json({
+      error: "Prompt is required"
+    });
+  }
 
-    const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
 
-    let data;
-    let lastStatus = 503;
-
-    for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-goog-api-key": apiKey
         },
+        signal: AbortSignal.timeout(20000),
         body: JSON.stringify({
           contents: [
             {
@@ -45,62 +43,55 @@ export default async function handler(req, res) {
         })
       });
 
-      const responseText = await response.text();
+      const text = await response.text();
 
+      let data;
       try {
-        data = JSON.parse(responseText);
+        data = JSON.parse(text);
       } catch {
-        data = {
-          error: {
-            message: responseText || "Invalid response from Gemini"
-          }
-        };
+        data = {};
       }
 
       if (response.ok) {
-        break;
+        const result = data.candidates?.[0]?.content?.parts
+          ?.map(part => part.text || "")
+          .join("");
+
+        if (!result) {
+          return res.status(502).json({
+            error: "Gemini returned an empty response"
+          });
+        }
+
+        return res.status(200).json({ result });
       }
 
-      lastStatus = response.status;
+      console.error("Gemini error:", response.status, data);
 
-      console.error("Gemini API error:", {
-        status: response.status,
-        message: data.error?.message || "Unknown error"
-      });
-
-      const retryable = [429, 500, 503, 504];
-
-      if (!retryable.includes(response.status) || attempt === 2) {
-        return res.status(response.status).json({
-          error: data.error?.message || "Gemini API error",
-          status: response.status
-        });
+      if (
+        [429, 500, 503, 504].includes(response.status) &&
+        attempt === 0
+      ) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        continue;
       }
 
-      await new Promise(resolve =>
-        setTimeout(resolve, 1000 * (attempt + 1))
-      );
-    }
+      return res.status(response.status).json({
+        error: data.error?.message || "Gemini API error",
+        status: response.status
+      });
 
-    if (!data || !data.candidates?.[0]?.content?.parts) {
-      return res.status(lastStatus).json({
-        error: "Gemini returned no valid response"
+    } catch (error) {
+      console.error("Gemini request failed:", error);
+
+      if (attempt === 0) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        continue;
+      }
+
+      return res.status(504).json({
+        error: "Gemini did not respond in time. Please try again."
       });
     }
-
-    const result = data.candidates[0].content.parts
-      .map(part => part.text || "")
-      .join("");
-
-    return res.status(200).json({
-      result: result || "No response"
-    });
-
-  } catch (error) {
-    console.error("Server error:", error);
-
-    return res.status(500).json({
-      error: error.message || "Server error"
-    });
   }
 }
