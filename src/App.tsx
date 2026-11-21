@@ -1025,7 +1025,7 @@ ${html}`
                   <b>{ar ? 'المواقع المنشورة' : 'Published sites'}</b>
                   <small> / {publishedSites.length}</small>
                 </div>
-                <button type="button" onClick={() => openSection('')}>
+                <button type="button" onClick={() => openSection('home')}>
                   {ar ? 'إغلاق' : 'Close'}
                 </button>
               </div>
