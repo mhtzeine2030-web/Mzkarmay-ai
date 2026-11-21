@@ -746,7 +746,6 @@ ${html}`
                 <div style={{ padding: 18 }}>
                   {projects.filter(project => !!project.publishedPathname).length === 0 ? <p>{ar ? 'لم تنشر أي موقع بعد.' : 'You have not published a website yet.'}</p> : projects.filter(project => !!project.publishedPathname).slice(0, 5).map(project => (
                     <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
-                      <b style={{ overflowWrap: 'anywhere' }}>{project.title}</b>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 180px' }}><b style={{ overflowWrap: 'anywhere' }}>{project.title}</b><small style={{ color: '#64748b' }}>{ar ? 'الزيارات: ' : 'Visits: '}{(siteAnalytics.find(item => item.pathname === project.publishedPathname)?.visits || 0).toLocaleString(ar ? 'ar' : 'en')}</small></div>
                       <button type="button" onClick={() => { openProject(project); setShowDashboard(false); }}>{ar ? 'إدارة الموقع' : 'Manage website'}</button>
                     </div>
