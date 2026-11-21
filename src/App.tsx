@@ -268,7 +268,7 @@ ${html}`
       const response = await fetch(site.url, { headers: { Accept: 'text/html' } });
       if (!response.ok) throw new Error(ar ? 'تعذر تحميل الموقع المنشور.' : 'Could not load the published website.');
       const importedHtml = await response.text();
-      if (!/<html[\\s>]|<!doctype\\s+html/i.test(importedHtml)) {
+      if (!/<(?:!doctype\\s+html|html(?:\\s|>))/i.test(importedHtml.replace(/^\\uFEFF/, '').trim())) {
         throw new Error(ar ? 'المحتوى المسترجع ليس صفحة HTML صالحة.' : 'The retrieved content is not valid HTML.');
       }
       const now = new Date().toISOString();
