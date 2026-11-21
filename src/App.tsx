@@ -42,6 +42,7 @@ export default function App() {
     size: number;
   }>>([]);
   const [showPublished, setShowPublished] = useState(false);
+  const [showApps, setShowApps] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
@@ -233,6 +234,16 @@ export default function App() {
 
   const ar = language === 'ar';
 
+  const openSection = (section: 'dashboard' | 'projects' | 'published' | 'apps') => {
+    setShowDashboard(section === 'dashboard');
+    setShowProjects(section === 'projects');
+    setShowPublished(section === 'published');
+    setShowApps(section === 'apps');
+    setSelectedAnalyticsSite(null);
+    setSiteVisitHistory([]);
+    setHistoryError('');
+  };
+
   const loadSiteVisitHistory = async (project: { id: string; title: string; publishedPathname?: string }) => {
     if (!project.publishedPathname) return;
     setSelectedAnalyticsSite({
@@ -389,7 +400,7 @@ ${html}`
   };
 
   const loadPublishedSites = async () => {
-    setShowPublished(true);
+    openSection('published');
     setPublishError('');
 
     try {
@@ -683,7 +694,8 @@ ${html}`
               localStorage.removeItem('mzkarmay-ai-draft');
               setCurrentProjectId('');
               setCurrentPublishedPathname('');
-              setShowProjects(false);
+              setShowDashboard(false); setShowProjects(false); setShowPublished(false); setShowApps(false);
+              setDraftSaved(false);
               setDraftSaved(false);
               setPrompt('');
               setResult('');
@@ -700,12 +712,12 @@ ${html}`
             {ar ? 'مساحة العمل' : 'WORKSPACE'}
           </div>
 
-          <a className={showDashboard ? 'nav active' : 'nav'} href="#dashboard" onClick={e => { e.preventDefault(); setShowDashboard(true); setShowProjects(false); setShowPublished(false); }}>
+          <a className={showDashboard ? 'nav active' : 'nav'} href="#dashboard" onClick={e => { e.preventDefault(); openSection('dashboard'); }}>
             <LayoutDashboard size={17} />
             {ar ? 'لوحة التحكم' : 'Dashboard'}
           </a>
 
-          <a className={showProjects ? 'nav active' : 'nav'} href="#my-projects" onClick={e => { e.preventDefault(); setShowProjects(true); }}>
+          <a className={showProjects ? 'nav active' : 'nav'} href="#my-projects" onClick={e => { e.preventDefault(); openSection('projects'); }}>
             <LayoutDashboard size={17} />
             {ar ? 'المشاريع' : 'Projects'}
           </a>
@@ -715,13 +727,14 @@ ${html}`
             href="#published-sites"
             onClick={e => {
               e.preventDefault();
-              void loadPublishedSites();            }}
+              void loadPublishedSites();
+            }}
           >
             <Globe2 size={17} />
             {ar ? 'المواقع المنشورة' : 'Published sites'}
           </a>
 
-          <a className="nav">
+          <a className={showApps ? 'nav active' : 'nav'} href="#apps" onClick={e => { e.preventDefault(); openSection('apps'); }}>
             <Smartphone size={17} />
             {ar ? 'التطبيقات' : 'Apps'}
           </a>
@@ -759,18 +772,18 @@ ${html}`
                 <div className="workspace" style={{ padding: 20 }}><small style={{ color: '#64748b' }}>{ar ? 'إجمالي الزيارات' : 'Total visits'}</small><div style={{ fontSize: 32, fontWeight: 800, marginTop: 8 }}>{siteAnalytics.reduce((total, site) => total + site.visits, 0).toLocaleString(ar ? 'ar' : 'en')}</div></div>
               </div>
               <div className="workspace" style={{ marginBottom: 18 }}>
-                <div className="workspace-bar"><div><LayoutDashboard size={16} /><b>{ar ? 'أحدث مشاريعك' : 'Recent projects'}</b><small> / {projects.length}</small></div><button type="button" onClick={() => { setShowDashboard(false); setShowProjects(true); }}>{ar ? 'كل المشاريع' : 'All projects'}</button></div>
+                <div className="workspace-bar"><div><LayoutDashboard size={16} /><b>{ar ? 'أحدث مشاريعك' : 'Recent projects'}</b><small> / {projects.length}</small></div><button type="button" onClick={() => openSection('projects')}>{ar ? 'كل المشاريع' : 'All projects'}</button></div>
                 <div style={{ padding: 18 }}>
                   {projects.length === 0 ? <p>{ar ? 'لا توجد مشاريع محفوظة حتى الآن. ابدأ بإنشاء مشروع جديد.' : 'No saved projects yet. Start by creating a new project.'}</p> : projects.slice(0, 5).map(project => (
                     <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
                       <div style={{ minWidth: 0, flex: '1 1 180px' }}><b style={{ display: 'block', overflowWrap: 'anywhere' }}>{project.title}</b><small style={{ color: '#64748b' }}>{project.publishedPathname ? (ar ? 'موقع منشور' : 'Published website') : (ar ? 'مشروع محفوظ' : 'Saved project')}</small></div>
-                      <button type="button" onClick={() => { openProject(project); setShowDashboard(false); }}>{ar ? 'فتح المشروع' : 'Open project'}</button>
+                      <button type="button" onClick={() => { openProject(project); openSection(''); setShowDashboard(false); setShowProjects(false); setShowPublished(false); setShowApps(false); }}>{ar ? 'فتح المشروع' : 'Open project'}</button>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="workspace">
-                <div className="workspace-bar"><div><Globe2 size={16} /><b>{ar ? 'مواقعك المنشورة' : 'Your published websites'}</b></div><button type="button" onClick={() => { setShowDashboard(false); void loadPublishedSites(); }}>{ar ? 'عرض المواقع' : 'View websites'}</button></div>
+                <div className="workspace-bar"><div><Globe2 size={16} /><b>{ar ? 'مواقعك المنشورة' : 'Your published websites'}</b></div><button type="button" onClick={() => void loadPublishedSites()}>{ar ? 'عرض المواقع' : 'View websites'}</button></div>
                 <div style={{ padding: 18 }}>
                   {projects.filter(project => !!project.publishedPathname).length === 0 ? <p>{ar ? 'لم تنشر أي موقع بعد.' : 'You have not published a website yet.'}</p> : projects.filter(project => !!project.publishedPathname).slice(0, 5).map(project => (
                     <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
@@ -825,7 +838,13 @@ ${html}`
               <button type="button" className="send" style={{ marginTop: 18 }} onClick={() => { setShowDashboard(false); localStorage.removeItem('mzkarmay-ai-draft'); setCurrentProjectId(''); setCurrentPublishedPathname(''); setPrompt(''); setResult(''); setHtml(''); setError(''); setTab('preview'); }}>{ar ? '＋ إنشاء مشروع جديد' : '＋ Create new project'}</button>
             </section>
           )}
-          <div style={{ display: showDashboard ? 'none' : 'block' }}>
+          {showApps && (
+            <section id="apps" className="workspace" style={{ marginBottom: 24, padding: 22 }}>
+              <h2>{ar ? 'التطبيقات' : 'Apps'}</h2>
+              <p>{ar ? 'سيظهر هنا قسم إدارة التطبيقات التي تنشئها.' : 'Your created apps will appear here.'}</p>
+            </section>
+          )}
+          <div style={{ display: showDashboard || showProjects || showPublished || showApps ? 'none' : 'block' }}>
           <div className="welcome">
             <div className="eyebrow">
               <span className="pulse"></span>
@@ -978,7 +997,7 @@ ${html}`
             <section id="my-projects" className="workspace" style={{ marginBottom: 20 }}>
               <div className="workspace-bar">
                 <div><LayoutDashboard size={16} /><b>{ar ? 'مشاريعي المحفوظة' : 'My saved projects'}</b><small> / {projects.length}</small></div>
-                <button type="button" onClick={() => setShowProjects(false)}>{ar ? 'إغلاق' : 'Close'}</button>
+                <button type="button" onClick={() => openSection('')}>{ar ? 'إغلاق' : 'Close'}</button>
               </div>
               <div style={{ padding: 18 }}>
                 {projects.length === 0 ? (
@@ -1007,7 +1026,7 @@ ${html}`
                   <b>{ar ? 'المواقع المنشورة' : 'Published sites'}</b>
                   <small> / {publishedSites.length}</small>
                 </div>
-                <button type="button" onClick={() => setShowPublished(false)}>
+                <button type="button" onClick={() => openSection('')}>
                   {ar ? 'إغلاق' : 'Close'}
                 </button>
               </div>
