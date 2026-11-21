@@ -41,6 +41,8 @@ export default function App() {
     size: number;
   }>>([]);
   const [showPublished, setShowPublished] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
 
   const ar = language === 'ar';
@@ -115,6 +117,62 @@ All cart, quantity, total, settings, and checkout controls must work on mobile a
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const editWebsite = async () => {
+    if (!html || !editPrompt.trim() || editing) return;
+
+    setEditing(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: `You are editing an existing website. Apply the user's requested changes to the current HTML.
+Return the COMPLETE updated standalone HTML document inside one html code block.
+Preserve all existing pages, content, styling, functionality, shopping cart, WhatsApp checkout, and responsive behavior unless the user explicitly asks to change them.
+Do not remove working features. Do not explain anything outside the HTML code block.
+
+USER REQUEST:
+${editPrompt.trim()}
+
+CURRENT WEBSITE HTML:
+${html}`
+        })
+      });
+
+      const responseText = await response.text();
+      let data: any;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(`Invalid server response (${response.status}): ${responseText.slice(0, 250)}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(typeof data.error === 'string' ? data.error : 'Website editing failed.');
+      }
+
+      const updatedHtml = extractHtml(data.result || '');
+      if (!updatedHtml) {
+        throw new Error(ar ? 'لم يرجع الذكاء الاصطناعي كود HTML صالحاً. لم يتغير موقعك.' : 'AI did not return valid HTML. Your website was not changed.');
+      }
+
+      setHtml(updatedHtml);
+      setResult(data.result);
+      setEditPrompt('');
+      setTab('preview');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -466,6 +524,31 @@ All cart, quantity, total, settings, and checkout controls must work on mobile a
                     </small>
                   </div>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {html && (
+            <section className="builder" style={{ marginBottom: 20 }}>
+              <div className="prompt-head">
+                <div className="spark-circle"><WandSparkles size={18} /></div>
+                <div>
+                  <b>{ar ? 'عدّل موقعك بالمحادثة' : 'Edit your website with AI'}</b>
+                  <small>{ar ? 'اكتب التعديل الذي تريده دون إنشاء موقع جديد' : 'Describe a change without creating a new site'}</small>
+                </div>
+              </div>
+              <textarea
+                value={editPrompt}
+                onChange={e => setEditPrompt(e.target.value)}
+                placeholder={ar ? 'مثال: غيّر الألوان إلى الأزرق وأضف قسماً للعروض...' : 'Example: Change the colors to blue and add a promotions section...'}
+                disabled={editing}
+              />
+              <div className="prompt-footer">
+                <span className="hint">{ar ? 'سيتم الحفاظ على الموقع الحالي وميزاته.' : 'Your current website and its features will be preserved.'}</span>
+                <button className="send" type="button" onClick={editWebsite} disabled={editing || !editPrompt.trim()}>
+                  <WandSparkles size={16} />
+                  {editing ? (ar ? 'جارٍ التعديل...' : 'Editing...') : (ar ? 'تطبيق التعديل' : 'Apply changes')}
+                </button>
               </div>
             </section>
           )}
