@@ -339,8 +339,11 @@ ${html}`
     setPublishError('');
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error(ar ? 'سجّل الدخول لعرض مواقعك المنشورة.' : 'Sign in to view your published websites.');
       const response = await fetch('/api/publish', {
-        headers: { Accept: 'application/json' }
+        headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` }
       });
       const data = await response.json();
 
@@ -442,24 +445,40 @@ ${html}`
 
   const updatePublishedSite = async () => {
     if (!html.trim() || !currentPublishedPathname || updatingPublished) return;
-    const secret = window.prompt(ar ? 'أدخل كلمة مرور تحديث المواقع التي أعددتها في Vercel.' : 'Enter the site update password configured in Vercel.');
-    if (!secret) return;
+    const currentProject = projects.find(project => project.id === currentProjectId);
+    const projectId = currentProject?.cloudId;
+    if (!authUser || !projectId) {
+      setPublishError(ar ? 'احفظ المشروع في حسابك أولاً قبل تحديث الموقع المنشور.' : 'Save this project to your account before updating its published website.');
+      return;
+    }
+
     setUpdatingPublished(true);
     setPublishError('');
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error(ar ? 'انتهت جلسة الدخول. سجّل الدخول مجدداً.' : 'Your session expired. Please sign in again.');
+
       const response = await fetch('/api/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-site-update-key': secret },
-        body: JSON.stringify({ pathname: currentPublishedPathname, html })
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ projectId, pathname: currentPublishedPathname, html })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Website update failed.');
+
       const now = new Date().toISOString();
-      const updatedProjects = projects.map(project => project.id === currentProjectId ? { ...project, html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname } : project);
+      const updatedProjects = projects.map(project => project.id === currentProjectId
+        ? { ...project, html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname }
+        : project);
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(updatedProjects));
       setProjects(updatedProjects);
       setPublishedUrl('');
-      setPublishError(ar ? 'تم تحديث الموقع على الرابط نفسه. قد يستغرق ظهور التغيير دقيقة.' : 'Website updated at the same URL. Changes may take up to a minute to appear.');
+      setPublishError(ar ? 'تم تحديث موقعك المنشور وحفظ التعديلات في حسابك.' : 'Your published website and account project have been updated.');
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -488,39 +507,59 @@ ${html}`
 
   const publishSite = async () => {
     if (!html || publishing) return;
+    if (!authUser) {
+      setPublishError(ar ? 'سجّل الدخول أولاً حتى يُربط الموقع المنشور بحسابك.' : 'Please sign in first so the published website can be linked to your account.');
+      setAuthOpen(true);
+      return;
+    }
 
     setPublishing(true);
     setPublishError('');
     setPublishedUrl('');
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error(ar ? 'انتهت جلسة الدخول. سجّل الدخول مجدداً.' : 'Your session expired. Please sign in again.');
+
+      const currentProject = projects.find(project => project.id === currentProjectId);
       const response = await fetch('/api/publish', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Accept: 'application/json'
+          'Accept': 'application/json',
+          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           html,
-          title: prompt.trim().slice(0, 80)
+          title: prompt.trim().slice(0, 80),
+          prompt,
+          projectId: currentProject?.cloudId
         })
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Publishing failed.');
-      }
+      if (!response.ok) throw new Error(data.error || 'Publishing failed.');
 
       setPublishedUrl(data.url);
-      if (typeof data.pathname === 'string') {
+      if (typeof data.pathname === 'string' && typeof data.projectId === 'string') {
+        const now = new Date().toISOString();
+        const localId = currentProject?.id || data.projectId;
+        const project = {
+          id: localId,
+          cloudId: data.projectId,
+          title: prompt.trim().slice(0, 80) || (ar ? 'موقع منشور' : 'Published website'),
+          html,
+          prompt,
+          updatedAt: now,
+          publishedPathname: data.pathname
+        };
+        const updatedProjects = [project, ...projects.filter(item => item.id !== localId)];
+        localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(updatedProjects));
+        setProjects(updatedProjects);
+        setCurrentProjectId(localId);
         setCurrentPublishedPathname(data.pathname);
-        if (currentProjectId) {
-          const now = new Date().toISOString();
-          const updatedProjects = projects.map(project => project.id === currentProjectId ? { ...project, html, prompt, updatedAt: now, publishedPathname: data.pathname } : project);
-          localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(updatedProjects));
-          setProjects(updatedProjects);
-        }
+        setDraftSaved(true);
       }
       await loadPublishedSites();
     } catch (err) {
