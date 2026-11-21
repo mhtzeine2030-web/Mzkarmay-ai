@@ -64,7 +64,19 @@ export default function App() {
         const draft = JSON.parse(saved);
         if (typeof draft.html === 'string' && draft.html.trim()) {
           setHtml(draft.html);
-          setPrompt(typeof draft.prompt === 'string' ? draft.prompt : '');
+          const restoredPrompt = typeof draft.prompt === 'string' ? draft.prompt : '';
+          setPrompt(restoredPrompt);
+          const savedProjectsNow = JSON.parse(localStorage.getItem('mzkarmay-ai-projects') || '[]');
+          const matchingProject = Array.isArray(savedProjectsNow) ? savedProjectsNow.find((project: any) => project.html === draft.html) : null;
+          if (!matchingProject) {
+            const migratedProject = { id: `restored-${Date.now()}`, title: restoredPrompt.trim().slice(0, 80) || 'مشروع محفوظ', html: draft.html, prompt: restoredPrompt, updatedAt: draft.savedAt || new Date().toISOString() };
+            const nextProjects = [migratedProject, ...(Array.isArray(savedProjectsNow) ? savedProjectsNow : [])];
+            localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
+            setProjects(nextProjects);
+            setCurrentProjectId(migratedProject.id);
+          } else {
+            setCurrentProjectId(matchingProject.id);
+          }
           setResult(draft.html);
           setTab('preview');
           setDraftSaved(true);
