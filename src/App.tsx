@@ -54,7 +54,10 @@ export default function App() {
       const savedProjects = localStorage.getItem('mzkarmay-ai-projects');
       if (savedProjects) {
         const parsedProjects = JSON.parse(savedProjects);
-        if (Array.isArray(parsedProjects)) setProjects(parsedProjects);
+        if (Array.isArray(parsedProjects)) {
+          setProjects(parsedProjects);
+          if (parsedProjects[0]?.id) setCurrentProjectId(parsedProjects[0].id);
+        }
       }
       const saved = localStorage.getItem('mzkarmay-ai-draft');
       if (saved) {
@@ -359,6 +362,7 @@ ${html}`
           <button
             className="new-project"
             onClick={() => {
+              localStorage.removeItem('mzkarmay-ai-draft');
               setCurrentProjectId('');
               setShowProjects(false);
               setDraftSaved(false);
