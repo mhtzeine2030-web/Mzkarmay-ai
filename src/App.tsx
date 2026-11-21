@@ -6,12 +6,31 @@ import {
   Rocket, WandSparkles, Monitor
 } from 'lucide-react';
 
+function extractHtml(text: string): string {
+  const blocks = [...text.matchAll(/```[a-zA-Z0-9_-]*\s*([\s\S]*?)```/g)];
+
+  const htmlBlock = blocks
+    .map(match => match[1].trim())
+    .find(block => /<!doctype\s+html|<html[\s>]/i.test(block));
+
+  if (htmlBlock) return htmlBlock;
+
+  const start = text.search(/<!doctype\s+html|<html[\s>]/i);
+
+  if (start !== -1) {
+    return text.slice(start).trim();
+  }
+
+  return '';
+}
+
 export default function App() {
   const [prompt, setPrompt] = useState('');
   const [language, setLanguage] = useState<'ar' | 'en'>('ar');
   const [tab, setTab] = useState<'preview' | 'code'>('preview');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
+  const [html, setHtml] = useState('');
   const [error, setError] = useState('');
 
   const ar = language === 'ar';
@@ -21,7 +40,9 @@ export default function App() {
 
     setLoading(true);
     setResult('');
+    setHtml('');
     setError('');
+    setTab('preview');
 
     try {
       const response = await fetch('/api/generate', {
@@ -31,7 +52,13 @@ export default function App() {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          prompt: prompt.trim()
+          prompt: `${prompt.trim()}
+
+IMPORTANT: Create a complete, standalone, responsive website.
+Return the complete HTML document, including CSS and JavaScript.
+Put the HTML inside one html code block.
+Do not provide explanations before or after the code.
+The result must start with <!DOCTYPE html> and include all necessary HTML, CSS and JavaScript.`
         })
       });
 
@@ -43,37 +70,31 @@ export default function App() {
         data = JSON.parse(responseText);
       } catch {
         throw new Error(
-          `رد الخادم غير صالح (${response.status}): ${responseText.slice(0, 250)}`
+          `Invalid server response (${response.status}): ${responseText.slice(0, 250)}`
         );
       }
 
       if (!response.ok) {
-        const errorMessage =
-          typeof data.error === 'string'
-            ? data.error
-            : data.error?.message ||
-              JSON.stringify(data.error || data) ||
-              `خطأ في الخادم: ${response.status}`;
-
-        throw new Error(errorMessage);
-      }
-
-      if (typeof data.result !== 'string' || !data.result.trim()) {
         throw new Error(
           typeof data.error === 'string'
             ? data.error
-            : 'لم تصل نتيجة من Gemini'
+            : data.error?.message || `Server error: ${response.status}`
         );
       }
 
+      if (typeof data.result !== 'string' || !data.result.trim()) {
+        throw new Error('Gemini returned an empty response');
+      }
+
+      const generatedHtml = extractHtml(data.result);
+
       setResult(data.result);
-      setTab('code');
+      setHtml(generatedHtml);
+      setTab(generatedHtml ? 'preview' : 'code');
 
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : String(err)
+        err instanceof Error ? err.message : String(err)
       );
     } finally {
       setLoading(false);
@@ -137,6 +158,7 @@ export default function App() {
             onClick={() => {
               setPrompt('');
               setResult('');
+              setHtml('');
               setError('');
               setTab('preview');
             }}
@@ -298,9 +320,13 @@ export default function App() {
           {result && (
             <div className="notice">
               <Sparkles size={16} />
-              {ar
-                ? 'وصلت نتيجة الذكاء الاصطناعي بنجاح.'
-                : 'AI response received successfully.'}
+              {html
+                ? (ar
+                    ? 'تم إنشاء الموقع بنجاح، ويمكنك معاينته الآن.'
+                    : 'Website generated successfully. Preview it now.')
+                : (ar
+                    ? 'وصل الرد، لكنه لا يحتوي على كود HTML قابل للمعاينة.'
+                    : 'Response received, but no previewable HTML was found.')}
             </div>
           )}
 
@@ -349,7 +375,7 @@ export default function App() {
                     whiteSpace: 'pre-wrap',
                     overflowWrap: 'anywhere',
                     textAlign: 'start',
-                    direction: ar ? 'rtl' : 'ltr',
+                    direction: 'ltr',
                     padding: '20px',
                     maxHeight: '600px',
                     overflowY: 'auto',
@@ -359,18 +385,32 @@ export default function App() {
                 >
                   {result}
                 </pre>
+              ) : html ? (
+                <iframe
+                  title="Generated website preview"
+                  srcDoc={html}
+                  sandbox="allow-scripts allow-forms"
+                  referrerPolicy="no-referrer"
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    height: '700px',
+                    border: 'none',
+                    background: '#ffffff'
+                  }}
+                />
               ) : result ? (
                 <div className="empty-preview">
                   <div className="preview-icon">
                     <Monitor size={27} />
                   </div>
                   <b>
-                    {ar ? 'تم استلام نتيجة Gemini' : 'Gemini response received'}
+                    {ar ? 'لم يتم العثور على كود HTML' : 'No HTML code found'}
                   </b>
                   <p>
                     {ar
-                      ? 'اضغط على تبويب النتيجة لقراءة الرد.'
-                      : 'Select Result to read the response.'}
+                      ? 'افتح تبويب النتيجة لمشاهدة رد Gemini.'
+                      : 'Open Result to view the Gemini response.'}
                   </p>
                   <button onClick={() => setTab('code')}>
                     {ar ? 'عرض النتيجة' : 'View result'}
