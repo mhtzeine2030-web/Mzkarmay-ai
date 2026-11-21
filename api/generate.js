@@ -1,4 +1,6 @@
 
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -33,7 +35,7 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
           "x-goog-api-key": apiKey
         },
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(55000),
         body: JSON.stringify({
           contents: [
             {
