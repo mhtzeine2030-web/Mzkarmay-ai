@@ -22,32 +22,40 @@ export default async function handler(req, res) {
     });
   }
 
-  const url =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent";
+  const models = [
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite"
+  ];
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let lastError = "Gemini service is unavailable";
+  let lastStatus = 503;
+
+  for (const model of models) {
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        signal: AbortSignal.timeout(20000),
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ]
-        })
-      });
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          signal: AbortSignal.timeout(15000),
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }]
+              }
+            ]
+          })
+        }
+      );
 
-      const text = await response.text();
+      const responseText = await response.text();
 
       let data;
       try {
-        data = JSON.parse(text);
+        data = JSON.parse(responseText);
       } catch {
         data = {};
       }
@@ -57,41 +65,43 @@ export default async function handler(req, res) {
           ?.map(part => part.text || "")
           .join("");
 
-        if (!result) {
-          return res.status(502).json({
-            error: "Gemini returned an empty response"
+        if (result) {
+          return res.status(200).json({
+            result,
+            model
           });
         }
 
-        return res.status(200).json({ result });
-      }
-
-      console.error("Gemini error:", response.status, data);
-
-      if (
-        [429, 500, 503, 504].includes(response.status) &&
-        attempt === 0
-      ) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        lastError = "Gemini returned an empty response";
+        lastStatus = 502;
         continue;
       }
 
-      return res.status(response.status).json({
-        error: data.error?.message || "Gemini API error",
-        status: response.status
-      });
+      lastError =
+        data.error?.message || "Gemini API error";
+      lastStatus = response.status;
+
+      console.error("Gemini error:", model, lastStatus, lastError);
+
+      if (![429, 500, 503, 504].includes(response.status)) {
+        return res.status(response.status).json({
+          error: lastError
+        });
+      }
 
     } catch (error) {
-      console.error("Gemini request failed:", error);
+      lastError = error.name === "TimeoutError"
+        ? `${model} timed out`
+        : error.message;
 
-      if (attempt === 0) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        continue;
-      }
+      lastStatus = 504;
 
-      return res.status(504).json({
-        error: "Gemini did not respond in time. Please try again."
-      });
+      console.error("Gemini request failed:", model, lastError);
     }
   }
+
+  return res.status(lastStatus).json({
+    error: "Both Gemini models are currently unavailable. Please try again shortly.",
+    details: lastError
+  });
 }
