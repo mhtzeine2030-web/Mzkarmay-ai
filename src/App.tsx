@@ -234,7 +234,7 @@ export default function App() {
 
   const ar = language === 'ar';
 
-  const openSection = (section: 'dashboard' | 'projects' | 'published' | 'apps') => {
+  const openSection = (section: 'home' | 'dashboard' | 'projects' | 'published' | 'apps') => {
     setShowDashboard(section === 'dashboard');
     setShowProjects(section === 'projects');
     setShowPublished(section === 'published');
@@ -694,8 +694,7 @@ ${html}`
               localStorage.removeItem('mzkarmay-ai-draft');
               setCurrentProjectId('');
               setCurrentPublishedPathname('');
-              setShowDashboard(false); setShowProjects(false); setShowPublished(false); setShowApps(false);
-              setDraftSaved(false);
+              openSection('home');
               setDraftSaved(false);
               setPrompt('');
               setResult('');
@@ -777,7 +776,7 @@ ${html}`
                   {projects.length === 0 ? <p>{ar ? 'لا توجد مشاريع محفوظة حتى الآن. ابدأ بإنشاء مشروع جديد.' : 'No saved projects yet. Start by creating a new project.'}</p> : projects.slice(0, 5).map(project => (
                     <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
                       <div style={{ minWidth: 0, flex: '1 1 180px' }}><b style={{ display: 'block', overflowWrap: 'anywhere' }}>{project.title}</b><small style={{ color: '#64748b' }}>{project.publishedPathname ? (ar ? 'موقع منشور' : 'Published website') : (ar ? 'مشروع محفوظ' : 'Saved project')}</small></div>
-                      <button type="button" onClick={() => { openProject(project); openSection(''); setShowDashboard(false); setShowProjects(false); setShowPublished(false); setShowApps(false); }}>{ar ? 'فتح المشروع' : 'Open project'}</button>
+                      <button type="button" onClick={() => { openProject(project); openSection('home'); }}>{ar ? 'فتح المشروع' : 'Open project'}</button>
                     </div>
                   ))}
                 </div>
@@ -997,7 +996,7 @@ ${html}`
             <section id="my-projects" className="workspace" style={{ marginBottom: 20 }}>
               <div className="workspace-bar">
                 <div><LayoutDashboard size={16} /><b>{ar ? 'مشاريعي المحفوظة' : 'My saved projects'}</b><small> / {projects.length}</small></div>
-                <button type="button" onClick={() => openSection('')}>{ar ? 'إغلاق' : 'Close'}</button>
+                <button type="button" onClick={() => openSection('home')}>{ar ? 'إغلاق' : 'Close'}</button>
               </div>
               <div style={{ padding: 18 }}>
                 {projects.length === 0 ? (
