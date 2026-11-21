@@ -82,7 +82,7 @@ export default async function handler(req, res) {
     return send(res, 400, { error: "Valid HTML is required." });
   }
 
-  if (!/<html[\\s>]|<!doctype\\s+html/i.test(html)) {
+  if (!/<html[\s>]|<!doctype\s+html/i.test(html)) {
     return send(res, 400, { error: "The content must be a complete HTML document." });
   }
 
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   }
 
   const safeTitle = typeof title === "string"
-    ? title.replace(/[<>\\r\\n]/g, "").trim().slice(0, 80)
+    ? title.replace(/[<>\r\n]/g, "").trim().slice(0, 80)
     : "";
 
   try {
