@@ -32,6 +32,16 @@ export default function App() {
   const [result, setResult] = useState('');
   const [html, setHtml] = useState('');
   const [error, setError] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const [publishedUrl, setPublishedUrl] = useState('');
+  const [publishedSites, setPublishedSites] = useState<Array<{
+    url: string;
+    pathname: string;
+    uploadedAt: string;
+    size: number;
+  }>>([]);
+  const [showPublished, setShowPublished] = useState(false);
+  const [publishError, setPublishError] = useState('');
 
   const ar = language === 'ar';
 
@@ -98,6 +108,61 @@ The result must start with <!DOCTYPE html> and include all necessary HTML, CSS a
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPublishedSites = async () => {
+    setShowPublished(true);
+    setPublishError('');
+
+    try {
+      const response = await fetch('/api/publish', {
+        headers: { Accept: 'application/json' }
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Could not load published sites.');
+      }
+
+      setPublishedSites(Array.isArray(data.sites) ? data.sites : []);
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const publishSite = async () => {
+    if (!html || publishing) return;
+
+    setPublishing(true);
+    setPublishError('');
+    setPublishedUrl('');
+
+    try {
+      const response = await fetch('/api/publish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        body: JSON.stringify({
+          html,
+          title: prompt.trim().slice(0, 80)
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Publishing failed.');
+      }
+
+      setPublishedUrl(data.url);
+      await loadPublishedSites();
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -176,7 +241,14 @@ The result must start with <!DOCTYPE html> and include all necessary HTML, CSS a
             {ar ? 'المشاريع' : 'Projects'}
           </a>
 
-          <a className="nav">
+          <a
+            className={showPublished ? 'nav active' : 'nav'}
+            href="#published-sites"
+            onClick={e => {
+              e.preventDefault();
+              void loadPublishedSites();
+            }}
+          >
             <Globe2 size={17} />
             {ar ? 'المواقع المنشورة' : 'Published sites'}
           </a>
@@ -330,6 +402,68 @@ The result must start with <!DOCTYPE html> and include all necessary HTML, CSS a
             </div>
           )}
 
+          {publishedUrl && (
+            <div className="notice" style={{ display: 'block' }}>
+              <b>{ar ? 'تم نشر موقعك!' : 'Your website is published!'}</b>
+              <div style={{ marginTop: 8, overflowWrap: 'anywhere' }}>
+                <a href={publishedUrl} target="_blank" rel="noreferrer">{publishedUrl}</a>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard?.writeText(publishedUrl)}
+                style={{ marginTop: 10 }}
+              >
+                {ar ? 'نسخ الرابط' : 'Copy link'}
+              </button>
+            </div>
+          )}
+
+          {publishError && (
+            <div className="notice">
+              {ar ? 'تعذر النشر: ' : 'Publishing error: '}
+              {publishError}
+            </div>
+          )}
+
+          {showPublished && (
+            <section id="published-sites" className="workspace" style={{ marginBottom: 20 }}>
+              <div className="workspace-bar">
+                <div>
+                  <Globe2 size={16} />
+                  <b>{ar ? 'المواقع المنشورة' : 'Published sites'}</b>
+                  <small> / {publishedSites.length}</small>
+                </div>
+                <button type="button" onClick={() => setShowPublished(false)}>
+                  {ar ? 'إغلاق' : 'Close'}
+                </button>
+              </div>
+              <div style={{ padding: 18 }}>
+                {publishedSites.length === 0 ? (
+                  <p>{ar ? 'لا توجد مواقع منشورة حتى الآن.' : 'No published sites yet.'}</p>
+                ) : publishedSites.map(site => (
+                  <div
+                    key={site.pathname}
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      padding: '12px 0',
+                      borderBottom: '1px solid #e5e7eb'
+                    }}
+                  >
+                    <a href={site.url} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere' }}>
+                      {site.url}
+                    </a>
+                    <small>
+                      {new Date(site.uploadedAt).toLocaleString(ar ? 'ar' : 'en')}
+                    </small>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="workspace">
             <div className="workspace-bar">
               <div>
@@ -356,9 +490,17 @@ The result must start with <!DOCTYPE html> and include all necessary HTML, CSS a
                 </button>
               </div>
 
-              <button className="publish" type="button">
+              <button
+                className="publish"
+                type="button"
+                onClick={publishSite}
+                disabled={!html || publishing}
+                title={!html ? (ar ? 'أنشئ موقعاً أولاً' : 'Generate a website first') : ''}
+              >
                 <Rocket size={14} />
-                {ar ? 'نشر' : 'Publish'}
+                {publishing
+                  ? (ar ? 'جارٍ النشر...' : 'Publishing...')
+                  : (ar ? 'نشر' : 'Publish')}
               </button>
             </div>
 
