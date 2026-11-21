@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     return send(res, 405, { error: "Method not allowed." });
   }
 
-  if (!isSameOrigin(req)) {
+  if (req.method === "POST" && !isSameOrigin(req)) {
     return send(res, 403, { error: "Cross-origin publishing is not allowed." });
   }
 
@@ -60,10 +60,6 @@ export default async function handler(req, res) {
       console.error("List account published sites failed:", error);
       return send(res, 500, { error: "Could not load your published websites." });
     }
-  }
-
-  if (!isSameOrigin(req)) {
-    return send(res, 403, { error: "Cross-origin publishing is not allowed." });
   }
 
   const { html, title, prompt, projectId } = req.body || {};
