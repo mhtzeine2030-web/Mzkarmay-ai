@@ -30,6 +30,25 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
+    // Count a published-site page request. Analytics failures must never prevent
+    // visitors from opening the website.
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      if (supabaseUrl && supabaseKey) {
+        const { createClient } = await import("@supabase/supabase-js");
+        const analyticsClient = createClient(supabaseUrl, supabaseKey, {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+        });
+        const { error: analyticsError } = await analyticsClient.rpc("increment_site_visit", {
+          p_pathname: pathname
+        });
+        if (analyticsError) console.error("Record website visit failed:", analyticsError);
+      }
+    } catch (analyticsError) {
+      console.error("Website analytics unavailable:", analyticsError);
+    }
+
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Content-Disposition", "inline");
     res.setHeader("X-Content-Type-Options", "nosniff");
