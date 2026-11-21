@@ -49,7 +49,7 @@ export default async function handler(req, res) {
       const sites = blobs
         .filter(blob => blob.pathname.endsWith(".html"))
         .map(blob => ({
-          url: blob.url,
+          url: `/api/site?pathname=${encodeURIComponent(blob.pathname)}`,
           pathname: blob.pathname,
           uploadedAt: blob.uploadedAt,
           size: blob.size
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
     });
 
     return send(res, 200, {
-      url: blob.url,
+      url: `/api/site?pathname=${encodeURIComponent(blob.pathname)}`,
       pathname: blob.pathname,
       title: safeTitle || "MZKarmay AI website"
     });
