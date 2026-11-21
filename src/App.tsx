@@ -45,7 +45,7 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
-  const [projects, setProjects] = useState<Array<{ id: string; title: string; html: string; prompt: string; updatedAt: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; title: string; html: string; prompt: string; updatedAt: string; publishedPathname?: string }>>([]);
   const [currentProjectId, setCurrentProjectId] = useState('');
   const [showProjects, setShowProjects] = useState(false);
   const [importingSite, setImportingSite] = useState('');
@@ -328,7 +328,7 @@ ${html}`
       const updatedProjects = projects.map(project => project.id === currentProjectId ? { ...project, html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname } : project);
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(updatedProjects));
       setProjects(updatedProjects);
-      setPublishedUrl(data.url);
+      setPublishedUrl('');
       setPublishError(ar ? 'تم تحديث الموقع على الرابط نفسه. قد يستغرق ظهور التغيير دقيقة.' : 'Website updated at the same URL. Changes may take up to a minute to appear.');
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : String(err));
@@ -378,6 +378,15 @@ ${html}`
       }
 
       setPublishedUrl(data.url);
+      if (typeof data.pathname === 'string') {
+        setCurrentPublishedPathname(data.pathname);
+        if (currentProjectId) {
+          const now = new Date().toISOString();
+          const updatedProjects = projects.map(project => project.id === currentProjectId ? { ...project, html, prompt, updatedAt: now, publishedPathname: data.pathname } : project);
+          localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(updatedProjects));
+          setProjects(updatedProjects);
+        }
+      }
       await loadPublishedSites();
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : String(err));
@@ -644,7 +653,7 @@ ${html}`
 
           {publishError && (
             <div className="notice">
-              {ar ? 'تعذر النشر: ' : 'Publishing error: '}
+              {ar ? 'رسالة: ' : 'Message: '}
               {publishError}
             </div>
           )}
