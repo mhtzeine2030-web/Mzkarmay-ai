@@ -575,7 +575,7 @@ ${html}`
                   onClick={() => setTab('code')}
                 >
                   <Code2 size={14} />
-                  {ar ? 'النتيجة' : 'Result'}
+                  {ar ? 'الكود' : 'Code'}
                 </button>
               </div>
 
@@ -600,6 +600,30 @@ ${html}`
                   <b>{ar ? 'الذكاء الاصطناعي يعمل...' : 'AI is working...'}</b>
                   <p>{ar ? 'يرجى الانتظار قليلاً.' : 'Please wait.'}</p>
                 </div>
+              ) : html && tab === 'code' ? (
+                <textarea
+                  aria-label={ar ? 'محرر كود الموقع' : 'Website code editor'}
+                  value={html}
+                  onChange={e => setHtml(e.target.value)}
+                  spellCheck={false}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    minHeight: '700px',
+                    padding: '20px',
+                    boxSizing: 'border-box',
+                    border: 'none',
+                    outline: 'none',
+                    resize: 'vertical',
+                    background: '#111018',
+                    color: '#e5e7eb',
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    lineHeight: 1.6,
+                    direction: 'ltr',
+                    textAlign: 'left'
+                  }}
+                />
               ) : result && tab === 'code' ? (
                 <pre
                   style={{
