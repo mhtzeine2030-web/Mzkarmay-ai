@@ -46,6 +46,7 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [projects, setProjects] = useState<Array<{ id: string; cloudId?: string; title: string; html: string; prompt: string; updatedAt: string; publishedPathname?: string }>>([]);
   const [currentProjectId, setCurrentProjectId] = useState('');
   const [showProjects, setShowProjects] = useState(false);
@@ -264,6 +265,7 @@ All cart, quantity, total, settings, and checkout controls must work on mobile a
 
       setResult(data.result);
       setHtml(generatedHtml);
+      setDraftSaved(false);
       setTab(generatedHtml ? 'preview' : 'code');
 
     } catch (err) {
@@ -321,6 +323,7 @@ ${html}`
       }
 
       setHtml(updatedHtml);
+      setDraftSaved(false);
       setResult(data.result);
       setEditPrompt('');
       setTab('preview');
@@ -352,7 +355,9 @@ ${html}`
   };
 
   const saveDraft = async () => {
-    if (!html.trim()) return;
+    if (!html.trim() || savingDraft) return;
+    setSavingDraft(true);
+    setPublishError('');
     try {
       const now = new Date().toISOString();
       const id = currentProjectId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `project-${Date.now()}`);
@@ -380,8 +385,10 @@ ${html}`
     } catch (error) {
       setDraftSaved(false);
       setPublishError(ar
-        ? 'تعذر حفظ المسودة. قد تكون مساحة التخزين ممتلئة.'
-        : 'Could not save the draft. Browser storage may be full.');
+        ? 'تعذر حفظ المسودة: ' + (error instanceof Error ? error.message : String(error))
+        : 'Could not save the draft: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -917,17 +924,22 @@ ${html}`
               <button
                 type="button"
                 onClick={saveDraft}
-                disabled={!html}
+                disabled={!html || savingDraft}
                 style={{
                   padding: '9px 12px',
                   border: '1px solid #d1d5db',
                   borderRadius: 8,
                   background: '#fff',
                   color: '#374151',
-                  cursor: html ? 'pointer' : 'not-allowed'
+                  cursor: html && !savingDraft ? 'pointer' : 'not-allowed',
+                  opacity: savingDraft ? 0.7 : 1
                 }}
               >
-                {ar ? (draftSaved ? 'تم حفظ المسودة' : 'حفظ التعديلات') : (draftSaved ? 'Draft saved' : 'Save changes')}
+                {savingDraft
+                  ? (ar ? 'جارٍ الحفظ...' : 'Saving...')
+                  : ar
+                    ? (draftSaved ? 'تم حفظ المسودة' : 'حفظ التعديلات')
+                    : (draftSaved ? 'Draft saved' : 'Save changes')}
               </button>
               {currentPublishedPathname && (
                 <button type="button" className="publish" onClick={updatePublishedSite} disabled={!html || updatingPublished}>
@@ -960,7 +972,7 @@ ${html}`
                 <textarea
                   aria-label={ar ? 'محرر كود الموقع' : 'Website code editor'}
                   value={html}
-                  onChange={e => setHtml(e.target.value)}
+                  onChange={e => { setHtml(e.target.value); setDraftSaved(false); }}
                   spellCheck={false}
                   style={{
                     display: 'block',
