@@ -22,87 +22,58 @@ export default async function handler(req, res) {
     });
   }
 
-  const models = [
-    "gemini-3.8-flash",
-    "gemini-3.5-flash-lite"
-  ];
+  const model = "gemini-3.5-flash-lite";
 
-  let errors = [];
-
-  for (const model of models) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey
-          },
-          signal: AbortSignal.timeout(10000),
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: prompt }]
-              }
-            ]
-          })
-        }
-      );
-
-      const responseText = await response.text();
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        data = {};
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
+        signal: AbortSignal.timeout(20000),
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }]
+            }
+          ]
+        })
       }
+    );
 
-      if (response.ok) {
-        const result = data.candidates?.[0]?.content?.parts
-          ?.map(part => part.text || "")
-          .join("");
+    const data = await response.json();
 
-        if (result) {
-          return res.status(200).json({
-            result,
-            model
-          });
-        }
+    if (!response.ok) {
+      console.error("Gemini API error:", response.status, data);
 
-        errors.push(`${model}: Empty response`);
-        continue;
-      }
-
-      const message = data.error?.message || "API error";
-
-      errors.push(`${model}: ${response.status} - ${message}`);
-
-      console.error("Gemini API error:", model, response.status, message);
-
-      if (![429, 500, 502, 503, 504].includes(response.status)) {
-        return res.status(response.status).json({
-          error: message
-        });
-      }
-
-    } catch (error) {
-      const message =
-        error.name === "TimeoutError" ||
-        error.name === "AbortError"
-          ? "Request timed out"
-          : error.message;
-
-      errors.push(`${model}: ${message}`);
-
-      console.error("Gemini request failed:", model, message);
+      return res.status(response.status).json({
+        error: data.error?.message || "Gemini API error"
+      });
     }
+
+    const result = data.candidates?.[0]?.content?.parts
+      ?.map(part => part.text || "")
+      .join("");
+
+    if (!result) {
+      return res.status(502).json({
+        error: "Gemini returned an empty response"
+      });
+    }
+
+    return res.status(200).json({
+      result,
+      model
+    });
+
+  } catch (error) {
+    console.error("Gemini request failed:", error);
+
+    return res.status(504).json({
+      error: "Gemini request timed out. Please try again."
+    });
   }
-
-  return res.status(503).json({
-    error: "Gemini is temporarily unavailable. Please try again.",
-    details: errors
-  });
 }
-
