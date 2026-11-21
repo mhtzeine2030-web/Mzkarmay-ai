@@ -82,7 +82,7 @@ export default function App() {
           if (!matchingProject) {
             const migratedProject = { id: `restored-${Date.now()}`, title: restoredPrompt.trim().slice(0, 80) || 'مشروع محفوظ', html: draft.html, prompt: restoredPrompt, updatedAt: draft.savedAt || new Date().toISOString() };
             const nextProjects = [migratedProject, ...(Array.isArray(savedProjectsNow) ? savedProjectsNow : [])];
-            localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));\n      if (authUser && cloudId) {\n        const { error } = await supabase.from('user_projects').upsert({\n          id: cloudId, user_id: authUser.id, title: project.title, html: project.html, prompt: project.prompt, published_pathname: project.publishedPathname || null\n        }, { onConflict: 'id' });\n        if (error) throw error;\n      }
+            localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
             setProjects(nextProjects);
             setCurrentProjectId(migratedProject.id);
           } else {
@@ -356,8 +356,21 @@ ${html}`
     try {
       const now = new Date().toISOString();
       const id = currentProjectId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `project-${Date.now()}`);
-      const existing = projects.find(item => item.id === id);\n      const cloudId = existing?.cloudId || (authUser ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : id) : undefined);\n      const project = { id, cloudId, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
+      const existing = projects.find(item => item.id === id);
+      const cloudId = existing?.cloudId || (authUser ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : id) : undefined);
+      const project = { id, cloudId, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
       const nextProjects = [project, ...projects.filter(item => item.id !== id)];
+      if (authUser && cloudId) {
+        const { error } = await supabase.from('user_projects').upsert({
+          id: cloudId,
+          user_id: authUser.id,
+          title: project.title,
+          html: project.html,
+          prompt: project.prompt,
+          published_pathname: project.publishedPathname || null
+        }, { onConflict: 'id' });
+        if (error) throw error;
+      }
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
       localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html, prompt, savedAt: now }));
       setProjects(nextProjects);
