@@ -48,6 +48,7 @@ export default function App() {
   const [projects, setProjects] = useState<Array<{ id: string; title: string; html: string; prompt: string; updatedAt: string }>>([]);
   const [currentProjectId, setCurrentProjectId] = useState('');
   const [showProjects, setShowProjects] = useState(false);
+  const [importingSite, setImportingSite] = useState('');
 
   useEffect(() => {
     try {
@@ -256,6 +257,40 @@ ${html}`
       setPublishError(ar
         ? 'تعذر حفظ المسودة. قد تكون مساحة التخزين ممتلئة.'
         : 'Could not save the draft. Browser storage may be full.');
+    }
+  };
+
+  const importPublishedSite = async (site: typeof publishedSites[number]) => {
+    if (importingSite) return;
+    setImportingSite(site.pathname);
+    setPublishError('');
+    try {
+      const response = await fetch(site.url, { headers: { Accept: 'text/html' } });
+      if (!response.ok) throw new Error(ar ? 'تعذر تحميل الموقع المنشور.' : 'Could not load the published website.');
+      const importedHtml = await response.text();
+      if (!/<html[\\s>]|<!doctype\\s+html/i.test(importedHtml)) {
+        throw new Error(ar ? 'المحتوى المسترجع ليس صفحة HTML صالحة.' : 'The retrieved content is not valid HTML.');
+      }
+      const now = new Date().toISOString();
+      const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `imported-${Date.now()}`;
+      const title = ar ? 'موقع مستورد ' + new Date(now).toLocaleDateString('ar') : 'Imported website ' + new Date(now).toLocaleDateString('en');
+      const project = { id, title, html: importedHtml, prompt: title, updatedAt: now };
+      const nextProjects = [project, ...projects];
+      localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
+      localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html: importedHtml, prompt: title, savedAt: now }));
+      setProjects(nextProjects);
+      setCurrentProjectId(id);
+      setHtml(importedHtml);
+      setPrompt(title);
+      setResult(importedHtml);
+      setTab('preview');
+      setDraftSaved(true);
+      setShowPublished(false);
+      setPublishError('');
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setImportingSite('');
     }
   };
 
@@ -636,9 +671,20 @@ ${html}`
                     <a href={site.url} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere' }}>
                       {site.url}
                     </a>
-                    <small>
-                      {new Date(site.uploadedAt).toLocaleString(ar ? 'ar' : 'en')}
-                    </small>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                      <small>
+                        {new Date(site.uploadedAt).toLocaleString(ar ? 'ar' : 'en')}
+                      </small>
+                      <button
+                        type="button"
+                        onClick={() => void importPublishedSite(site)}
+                        disabled={!!importingSite}
+                      >
+                        {importingSite === site.pathname
+                          ? (ar ? 'جارٍ الاستيراد...' : 'Importing...')
+                          : (ar ? 'استيراد إلى مشاريعي وتعديل' : 'Import to projects & edit')}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
