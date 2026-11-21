@@ -22,21 +22,11 @@ export default async function handler(req, res) {
       return res.status(404).send("Website not found.");
     }
 
-    const response = await fetch(blob.url, { redirect: "error" });
-
-    if (!response.ok) {
-      return res.status(502).send("Could not load the published website.");
-    }
-
-    const html = await response.text();
-
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Content-Disposition", "inline");
-    res.setHeader("X-Content-Type-Options", "nosniff");
+    // Serve generated HTML from the isolated Blob origin.
+    // This allows the store's localStorage while keeping it off the platform origin.
     res.setHeader("Referrer-Policy", "no-referrer");
-    res.setHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms");
-    res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300");
-    return res.status(200).send(html);
+    res.setHeader("Cache-Control", "no-store");
+    return res.redirect(302, blob.url);
   } catch (error) {
     console.error("Open published website failed:", error);
     return res.status(500).send("Could not open the published website.");
