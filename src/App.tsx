@@ -175,7 +175,7 @@ export default function App() {
     };
     void loadSiteAnalytics();
     return () => { active = false; };
-  }, [authUser?.id, projects]);
+  }, [authUser?.id, projects, showDashboard]);
 
   const handleAuth = async () => {
     if (!authEmail.trim() || !authPassword || authBusy) return;
