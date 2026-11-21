@@ -68,7 +68,14 @@ IMPORTANT: Create a complete, standalone, responsive website.
 Return the complete HTML document, including CSS and JavaScript.
 Put the HTML inside one html code block.
 Do not provide explanations before or after the code.
-The result must start with <!DOCTYPE html> and include all necessary HTML, CSS and JavaScript.`
+The result must start with <!DOCTYPE html> and include all necessary HTML, CSS and JavaScript.
+
+E-COMMERCE AND WHATSAPP CHECKOUT REQUIREMENTS:
+If the requested website is an online store or includes a shopping cart, implement a complete working cart and checkout.
+The checkout must send the order to WhatsApp using https://wa.me/ with a URL-encoded order message containing the store name, each product name, quantity, unit price, and grand total.
+IMPORTANT: Every store owner must be able to enter and save THEIR OWN WhatsApp number, including country code, in a clearly visible Store Settings / إعدادات المتجر section. Save this setting in localStorage so it remains after refresh. Do not hardcode the platform owner's phone number into generated stores and do not reuse another store's number. If no WhatsApp number has been configured, show a clear prompt asking the store owner to add their number before checkout; do not silently send to a default number.
+When the customer clicks checkout, validate the cart and configured number, open WhatsApp in a new tab/window with the order details, and KEEP the cart unchanged. Never clear the cart or navigate back to the home page as part of checkout. Only clear the cart after the customer explicitly chooses to clear it.
+All cart, quantity, total, settings, and checkout controls must work on mobile and desktop.`
         })
       });
 
@@ -246,8 +253,7 @@ The result must start with <!DOCTYPE html> and include all necessary HTML, CSS a
             href="#published-sites"
             onClick={e => {
               e.preventDefault();
-              void loadPublishedSites();
-            }}
+              void loadPublishedSites();            }}
           >
             <Globe2 size={17} />
             {ar ? 'المواقع المنشورة' : 'Published sites'}
@@ -579,6 +585,14 @@ The result must start with <!DOCTYPE html> and include all necessary HTML, CSS a
           <footer>
             © 2026 MZKarmay AI
             <span>{ar ? 'صُنع لبناء أفكارك' : 'Built for your ideas'}</span>
+            <a
+              href="https://wa.me/23568670101"
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginInlineStart: 12 }}
+            >
+              {ar ? 'تواصل معنا عبر واتساب' : 'Contact us on WhatsApp'}
+            </a>
           </footer>
         </main>
       </div>
