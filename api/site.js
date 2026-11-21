@@ -22,11 +22,22 @@ export default async function handler(req, res) {
       return res.status(404).send("Website not found.");
     }
 
-    // Serve generated HTML from the isolated Blob origin.
-    // This allows the store's localStorage while keeping it off the platform origin.
+    const response = await fetch(blob.url, { redirect: "error" });
+
+    if (!response.ok) {
+      return res.status(502).send("Could not load the published website.");
+    }
+
+    const html = await response.text();
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Content-Disposition", "inline");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");
+    // Do not use CSP sandbox here: it gives the document an opaque origin
+    // and prevents localStorage used by store settings and cart state.
     res.setHeader("Cache-Control", "no-store");
-    return res.redirect(302, blob.url);
+    return res.status(200).send(html);
   } catch (error) {
     console.error("Open published website failed:", error);
     return res.status(500).send("Could not open the published website.");
