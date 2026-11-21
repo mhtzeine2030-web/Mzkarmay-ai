@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Sparkles, Plus, Globe2, Smartphone, LayoutDashboard,
   Settings, ChevronDown, Send, Paperclip, Eye, Code2,
@@ -44,6 +44,25 @@ export default function App() {
   const [editPrompt, setEditPrompt] = useState('');
   const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('mzkarmay-ai-draft');
+      if (saved) {
+        const draft = JSON.parse(saved);
+        if (typeof draft.html === 'string' && draft.html.trim()) {
+          setHtml(draft.html);
+          setPrompt(typeof draft.prompt === 'string' ? draft.prompt : '');
+          setResult(draft.html);
+          setTab('preview');
+          setDraftSaved(true);
+        }
+      }
+    } catch (error) {
+      console.error('Could not restore local draft:', error);
+    }
+  }, []);
 
   const ar = language === 'ar';
 
@@ -196,6 +215,24 @@ ${html}`
     }
   };
 
+  const saveDraft = () => {
+    if (!html.trim()) return;
+    try {
+      localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({
+        html,
+        prompt,
+        savedAt: new Date().toISOString()
+      }));
+      setDraftSaved(true);
+      setPublishError('');
+    } catch (error) {
+      setDraftSaved(false);
+      setPublishError(ar
+        ? 'تعذر حفظ المسودة. قد تكون مساحة التخزين ممتلئة.'
+        : 'Could not save the draft. Browser storage may be full.');
+    }
+  };
+
   const publishSite = async () => {
     if (!html || publishing) return;
 
@@ -286,6 +323,8 @@ ${html}`
           <button
             className="new-project"
             onClick={() => {
+              localStorage.removeItem('mzkarmay-ai-draft');
+              setDraftSaved(false);
               setPrompt('');
               setResult('');
               setHtml('');
@@ -579,6 +618,21 @@ ${html}`
                 </button>
               </div>
 
+              <button
+                type="button"
+                onClick={saveDraft}
+                disabled={!html}
+                style={{
+                  padding: '9px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 8,
+                  background: '#fff',
+                  color: '#374151',
+                  cursor: html ? 'pointer' : 'not-allowed'
+                }}
+              >
+                {ar ? (draftSaved ? 'تم حفظ المسودة' : 'حفظ التعديلات') : (draftSaved ? 'Draft saved' : 'Save changes')}
+              </button>
               <button
                 className="publish"
                 type="button"
