@@ -1,18 +1,11 @@
 import { list, put } from "@vercel/blob";
-import { timingSafeEqual } from "node:crypto";
+import { getUserClient } from "./_lib/auth.js";
 
 const MAX_HTML_BYTES = 1024 * 1024;
 
 function send(res, status, body) {
   res.setHeader("Cache-Control", "no-store");
   return res.status(status).json(body);
-}
-
-function safeSecretEqual(provided, expected) {
-  if (typeof provided !== "string" || !expected) return false;
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 function isSameOrigin(req) {
@@ -31,17 +24,18 @@ export default async function handler(req, res) {
     return send(res, 405, { error: "Method not allowed." });
   }
 
-  if (!isSameOrigin(req)) return send(res, 403, { error: "Cross-origin updates are not allowed." });
-
-  const expectedSecret = process.env.SITE_UPDATE_SECRET;
-  if (!expectedSecret) return send(res, 503, { error: "Site update protection is not configured yet." });
-
-  const providedSecret = req.headers["x-site-update-key"];
-  if (!safeSecretEqual(providedSecret, expectedSecret)) {
-    return send(res, 401, { error: "The update password is incorrect." });
+  if (!isSameOrigin(req)) {
+    return send(res, 403, { error: "Cross-origin updates are not allowed." });
   }
 
-  const { pathname, html } = req.body || {};
+  const auth = await getUserClient(req);
+  if (auth.error) return send(res, auth.error.status, { error: auth.error.message });
+  const { client, user } = auth;
+
+  const { pathname, html, projectId } = req.body || {};
+  if (typeof projectId !== "string" || !/^[0-9a-f-]{36}$/i.test(projectId)) {
+    return send(res, 400, { error: "A valid project ID is required." });
+  }
   if (typeof pathname !== "string" || !/^sites\/[0-9a-f-]+\.html$/i.test(pathname)) {
     return send(res, 400, { error: "Invalid website address." });
   }
@@ -53,6 +47,18 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { data: project, error: lookupError } = await client
+      .from("user_projects")
+      .select("id, published_pathname")
+      .eq("id", projectId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (lookupError) throw lookupError;
+    if (!project || project.published_pathname !== pathname) {
+      return send(res, 404, { error: "This published website does not belong to your account." });
+    }
+
     const { blobs } = await list({ prefix: "sites/", limit: 1000 });
     const existing = blobs.find(blob => blob.pathname === pathname);
     if (!existing) return send(res, 404, { error: "Published website not found." });
@@ -64,6 +70,14 @@ export default async function handler(req, res) {
       contentType: "text/html; charset=utf-8",
       cacheControlMaxAge: 60
     });
+
+    const { error: saveError } = await client
+      .from("user_projects")
+      .update({ html })
+      .eq("id", projectId)
+      .eq("user_id", user.id);
+
+    if (saveError) throw saveError;
 
     return send(res, 200, {
       ok: true,
