@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from 'react';
+import { supabase } from './lib/supabase';
 import {
   Sparkles, Plus, Globe2, Smartphone, LayoutDashboard,
   Settings, ChevronDown, Send, Paperclip, Eye, Code2,
@@ -51,6 +52,13 @@ export default function App() {
   const [importingSite, setImportingSite] = useState('');
   const [currentPublishedPathname, setCurrentPublishedPathname] = useState('');
   const [updatingPublished, setUpdatingPublished] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
+  const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -89,6 +97,65 @@ export default function App() {
       console.error('Could not restore local draft:', error);
     }
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+      if (error) setAuthMessage(error.message);
+      const user = data.session?.user;
+      setAuthUser(user ? { id: user.id, email: user.email || '' } : null);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user;
+      setAuthUser(user ? { id: user.id, email: user.email || '' } : null);
+    });
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleAuth = async () => {
+    if (!authEmail.trim() || !authPassword || authBusy) return;
+    setAuthBusy(true);
+    setAuthMessage('');
+    try {
+      if (authMode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: authEmail.trim(),
+          password: authPassword,
+          options: { emailRedirectTo: window.location.origin }
+        });
+        if (error) throw error;
+        if (!data.session) {
+          setAuthMessage(ar ? 'تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيده، ثم سجّل الدخول.' : 'Account created. Check your email to confirm it, then sign in.');
+        } else {
+          setAuthMessage(ar ? 'تم إنشاء الحساب وتسجيل الدخول بنجاح.' : 'Account created and signed in successfully.');
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: authEmail.trim(),
+          password: authPassword
+        });
+        if (error) throw error;
+        setAuthMessage(ar ? 'تم تسجيل الدخول بنجاح.' : 'Signed in successfully.');
+      }
+    } catch (err) {
+      setAuthMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    setAuthMessage(error ? error.message : (ar ? 'تم تسجيل الخروج.' : 'Signed out.'));
+    if (!error) {
+      setAuthPassword('');
+      setAuthOpen(false);
+    }
+  };
 
   const ar = language === 'ar';
 
@@ -441,7 +508,9 @@ ${html}`
             {ar ? 'English' : 'العربية'}
             <ChevronDown size={14} />
           </button>
-          <button className="avatar">M</button>
+          <button className="avatar" type="button" onClick={() => { setAuthOpen(true); setAuthMessage(''); }}>
+            {authUser ? (authUser.email.charAt(0).toUpperCase() || 'U') : 'M'}
+          </button>
         </div>
       </header>
 
@@ -914,6 +983,38 @@ ${html}`
               )}
             </div>
           </div>
+
+          {authOpen && (
+            <div role="dialog" aria-modal="true" aria-label={ar ? 'حساب المستخدم' : 'User account'} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15, 23, 42, 0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <section style={{ width: '100%', maxWidth: 420, background: '#fff', color: '#111827', borderRadius: 16, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,.25)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                  <b style={{ fontSize: 19 }}>{ar ? 'حساب MZKarmay AI' : 'MZKarmay AI account'}</b>
+                  <button type="button" onClick={() => setAuthOpen(false)} aria-label={ar ? 'إغلاق' : 'Close'}>✕</button>
+                </div>
+                {authUser ? (
+                  <>
+                    <p style={{ overflowWrap: 'anywhere', marginBottom: 16 }}>{ar ? 'تم تسجيل الدخول بالبريد:' : 'Signed in as:'} <b>{authUser.email}</b></p>
+                    <button type="button" onClick={handleSignOut} style={{ width: '100%', padding: 12, borderRadius: 9, border: 0, background: '#111827', color: '#fff', cursor: 'pointer' }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                      <button type="button" onClick={() => { setAuthMode('login'); setAuthMessage(''); }} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #d1d5db', background: authMode === 'login' ? '#eef2ff' : '#fff' }}>{ar ? 'تسجيل الدخول' : 'Sign in'}</button>
+                      <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage(''); }} style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #d1d5db', background: authMode === 'signup' ? '#eef2ff' : '#fff' }}>{ar ? 'إنشاء حساب' : 'Create account'}</button>
+                    </div>
+                    <label style={{ display: 'block', marginBottom: 6 }}>{ar ? 'البريد الإلكتروني' : 'Email address'}</label>
+                    <input type="email" autoComplete="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="name@example.com" style={{ width: '100%', boxSizing: 'border-box', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, marginBottom: 12, direction: 'ltr' }} />
+                    <label style={{ display: 'block', marginBottom: 6 }}>{ar ? 'كلمة المرور' : 'Password'}</label>
+                    <input type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder={ar ? '6 أحرف على الأقل' : 'At least 6 characters'} style={{ width: '100%', boxSizing: 'border-box', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, marginBottom: 14, direction: 'ltr' }} />
+                    <button type="button" onClick={handleAuth} disabled={authBusy || !authEmail.trim() || authPassword.length < 6} style={{ width: '100%', padding: 12, borderRadius: 9, border: 0, background: '#4f46e5', color: '#fff', cursor: 'pointer', opacity: authBusy || !authEmail.trim() || authPassword.length < 6 ? .6 : 1 }}>
+                      {authBusy ? (ar ? 'جارٍ المعالجة...' : 'Please wait...') : authMode === 'signup' ? (ar ? 'إنشاء الحساب' : 'Create account') : (ar ? 'تسجيل الدخول' : 'Sign in')}
+                    </button>
+                  </>
+                )}
+                {authMessage && <p role="status" style={{ marginTop: 14, padding: 10, borderRadius: 8, background: '#f3f4f6', overflowWrap: 'anywhere' }}>{authMessage}</p>}
+              </section>
+            </div>
+          )}
 
           <footer>
             © 2026 MZKarmay AI
