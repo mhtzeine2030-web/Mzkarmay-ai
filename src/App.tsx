@@ -268,8 +268,9 @@ ${html}`
       const response = await fetch(site.url, { headers: { Accept: 'text/html' } });
       if (!response.ok) throw new Error(ar ? 'تعذر تحميل الموقع المنشور.' : 'Could not load the published website.');
       const importedHtml = await response.text();
-      if (!/<(?:!doctype\\s+html|html(?:\\s|>))/i.test(importedHtml.replace(/^\\uFEFF/, '').trim())) {
-        throw new Error(ar ? 'المحتوى المسترجع ليس صفحة HTML صالحة.' : 'The retrieved content is not valid HTML.');
+      const normalizedHtml = importedHtml.trimStart().replace(/^\uFEFF/, '').toLowerCase();
+      if (!normalizedHtml.includes('<html') && !normalizedHtml.startsWith('<!doctype html')) {
+        throw new Error(ar ? 'لم يصل كود الموقع. تحقق من رابط الموقع المنشور.' : 'Website HTML was not returned. Check the published site URL.');
       }
       const now = new Date().toISOString();
       const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `imported-${Date.now()}`;
