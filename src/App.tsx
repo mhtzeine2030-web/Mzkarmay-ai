@@ -119,6 +119,7 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [editStatus, setEditStatus] = useState('');
   const [editAction, setEditAction] = useState<'apply' | 'repair' | null>(null);
+  const editLockRef = useRef(false);
   const [publishError, setPublishError] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -451,12 +452,13 @@ In preview, fallback data may last only until the preview reloads; on a normal p
     }
   };
 
-  const editWebsite = async (requestedPrompt?: string) => {
-    const requestedChange = (requestedPrompt ?? editPrompt).trim();
-    if (!html || !requestedChange || editing) return;
+  const editWebsite = async (requestedPrompt: string, action: 'apply' | 'repair') => {
+    const requestedChange = requestedPrompt.trim();
+    if (!html || !requestedChange || editLockRef.current) return;
 
+    editLockRef.current = true;
     setEditing(true);
-    setEditAction(requestedPrompt ? 'repair' : 'apply');
+    setEditAction(action);
     setError('');
     setEditStatus(ar ? 'جارٍ تطبيق التعديل...' : 'Applying changes...');
 
@@ -520,20 +522,21 @@ ${html}`
       setEditStatus('');
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      editLockRef.current = false;
       setEditing(false);
       setEditAction(null);
     }
   };
 
   const applyWebsiteChanges = async () => {
-    await editWebsite(editPrompt);
+    await editWebsite(editPrompt, 'apply');
   };
 
   const repairCurrentWebsite = async () => {
     const repairPrompt = ar
       ? 'أصلح هذا التطبيق الحالي دون إعادة تصميمه أو حذف أي ميزة أو بيانات. افحص كود HTML وJavaScript الحالي. أصلح جميع مشاكل القوائم المتكررة بحيث تُضاف كل مهمة أو عنصر إلى المصفوفة ولا تستبدل العناصر السابقة، واحفظ المصفوفة كاملة ثم أعد عرض جميع العناصر بعد كل إضافة. افحص كذلك أخطاء التخزين الآمن وحافظ على مفاتيح التخزين والبيانات الحالية. اجعل الصفحة قابلة للتمرير عموديًا على الهاتف والكمبيوتر، وأزل فقط قيود الارتفاع الثابت أو overflow:hidden التي تمنع التمرير من الحاويات الرئيسية. حافظ على التصميم والألوان والنصوص والأقسام والوظائف الحالية كما هي. لا تحذف بيانات المستخدم ولا تغيّر أسماء المعرفات أو مفاتيح التخزين. أعد ملف HTML كاملًا صالحًا.'
       : 'Repair this existing app without redesigning it or removing any feature or data. Inspect its current HTML and JavaScript. Fix repeated lists so each task or item is appended to the array rather than replacing previous items, save the complete array, and render every item after each addition. Check safe storage handling while preserving existing storage keys and data. Make the page vertically scrollable on phones and desktops; remove only fixed-height or overflow:hidden constraints on root containers that block scrolling. Preserve the current design, colors, text, sections, and functionality. Do not delete user data or rename IDs or storage keys. Return the complete valid HTML document.';
-    await editWebsite(repairPrompt);
+    await editWebsite(repairPrompt, 'repair');
   };
 
   const loadPublishedSites = async () => {
