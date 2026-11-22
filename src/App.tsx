@@ -54,19 +54,40 @@ function createPreviewDocument(sourceHtml: string, storage: Record<string, strin
       });
     } catch (error) {}
     const sendHeight = () => {
+      const root = document.documentElement;
+      const body = document.body;
       const height = Math.max(
-        document.documentElement ? document.documentElement.scrollHeight : 0,
-        document.body ? document.body.scrollHeight : 0
+        root ? root.scrollHeight : 0,
+        root ? root.offsetHeight : 0,
+        body ? body.scrollHeight : 0,
+        body ? body.offsetHeight : 0
       );
       parent.postMessage({ type: 'MZKARMAY_PREVIEW_HEIGHT', projectKey, height }, '*');
     };
     if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(sendHeight).observe(document.documentElement);
+      const resizeObserver = new ResizeObserver(sendHeight);
+      if (document.documentElement) resizeObserver.observe(document.documentElement);
+      if (document.body) resizeObserver.observe(document.body);
+    }
+    if (typeof MutationObserver !== 'undefined' && document.documentElement) {
+      const mutationObserver = new MutationObserver(() => {
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(sendHeight);
+        else sendHeight();
+      });
+      mutationObserver.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: true
+      });
     }
     window.addEventListener('load', sendHeight);
+    window.addEventListener('resize', sendHeight);
     document.addEventListener('DOMContentLoaded', sendHeight);
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(sendHeight);
     setTimeout(sendHeight, 0);
     setTimeout(sendHeight, 250);
+    setTimeout(sendHeight, 700);
   })();
   <\/script>`;
   if (/<head(?:[ \t\r\n][^>]*)?>/i.test(sourceHtml)) {
