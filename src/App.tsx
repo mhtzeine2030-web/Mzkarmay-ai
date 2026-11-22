@@ -69,10 +69,10 @@ function createPreviewDocument(sourceHtml: string, storage: Record<string, strin
     setTimeout(sendHeight, 250);
   })();
   <\/script>`;
-  if (/<head(?:\\s[^>]*)?>/i.test(sourceHtml)) {
-    return sourceHtml.replace(/<head(?:\\s[^>]*)?>/i, match => match + bridge);
+  if (/<head(?:[ \t\r\n][^>]*)?>/i.test(sourceHtml)) {
+    return sourceHtml.replace(/<head(?:[ \t\r\n][^>]*)?>/i, match => match + bridge);
   }
-  return sourceHtml.replace(/<html(?:\\s[^>]*)?>/i, match => match + '<head>' + bridge + '</head>');
+  return sourceHtml.replace(/<html(?:[ \t\r\n][^>]*)?>/i, match => match + '<head>' + bridge + '</head>');
 }
 
 export default function App() {
