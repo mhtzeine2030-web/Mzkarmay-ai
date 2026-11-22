@@ -299,7 +299,12 @@ If the requested website is an online store or includes a shopping cart, impleme
 The checkout must send the order to WhatsApp using https://wa.me/ with a URL-encoded order message containing the store name, each product name, quantity, unit price, and grand total.
 IMPORTANT: Every store owner must be able to enter and save THEIR OWN WhatsApp number, including country code, in a clearly visible Store Settings / إعدادات المتجر section. Save this setting in localStorage so it remains after refresh. Do not hardcode the platform owner's phone number into generated stores and do not reuse another store's number. If no WhatsApp number has been configured, show a clear prompt asking the store owner to add their number before checkout; do not silently send to a default number.
 When the customer clicks checkout, validate the cart and configured number, open WhatsApp in a new tab/window with the order details, and KEEP the cart unchanged. Never clear the cart or navigate back to the home page as part of checkout. Only clear the cart after the customer explicitly chooses to clear it.
-All cart, quantity, total, settings, and checkout controls must work on mobile and desktop.`
+All cart, quantity, total, settings, and checkout controls must work on mobile and desktop.
+
+CRITICAL PREVIEW STORAGE COMPATIBILITY:
+The website may run inside a sandboxed iframe preview where window.localStorage access throws a SecurityError because the document has an opaque origin. NEVER access localStorage directly during startup or application logic.
+Create a safe storage adapter at the very beginning of the script. Its getItem, setItem, and removeItem methods must each try window.localStorage inside try/catch and use an in-memory object/Map fallback when storage is blocked. Route EVERY read/write/remove operation through this adapter, including tasks, settings, cart, WhatsApp number, and saved preferences. Initialize the adapter before any app code that reads saved data. Guard JSON.parse with try/catch and sensible defaults so corrupt or unavailable stored data cannot stop the script.
+Do not let storage errors prevent event listeners, form submission handlers, buttons, rendering, or other app interactions from being initialized. In preview, fallback data may last only until the preview reloads; on a normal published website, browser storage should persist normally.
         })
       });
 
@@ -357,10 +362,18 @@ All cart, quantity, total, settings, and checkout controls must work on mobile a
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          prompt: `You are editing an existing website. Apply the user's requested changes to the current HTML.
+          prompt: `You are making a MINIMAL PATCH to an existing website, not generating a replacement website.
+Treat the CURRENT WEBSITE HTML below as the source of truth. Make only the smallest code changes needed to satisfy the user's latest request.
 Return the COMPLETE updated standalone HTML document inside one html code block.
-Preserve all existing pages, content, styling, functionality, shopping cart, WhatsApp checkout, and responsive behavior unless the user explicitly asks to change them.
-Do not remove working features. Do not explain anything outside the HTML code block.
+MANDATORY CHANGE-PRESERVATION RULES:
+- Preserve every previous user-requested change exactly, including colors, typography, layout, text, sections, and behavior, unless the latest request explicitly changes that same item.
+- Do not restore defaults, undo earlier edits, redesign, rewrite, simplify, or regenerate unrelated parts of the website.
+- Preserve all existing pages, content, styling, IDs, CSS rules, JavaScript functions, event listeners, data, and functionality, including shopping cart, WhatsApp checkout, and responsive behavior.
+- Do not remove or rename working elements, functions, selectors, storage keys, or event handlers.
+- If the request affects one element, edit only that element and its directly necessary supporting code.
+- Before returning, mentally compare the updated HTML with the current HTML and verify that all unrelated code and all earlier changes remain intact.
+- Keep any safe storage adapter and its memory fallback intact. Never replace safe storage access with direct localStorage calls; preview may run in a sandbox where localStorage throws SecurityError.
+- Return complete HTML, not a diff or partial snippet. Do not explain anything outside the HTML code block.
 
 USER REQUEST:
 ${editPrompt.trim()}
