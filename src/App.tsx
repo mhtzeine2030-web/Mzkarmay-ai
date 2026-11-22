@@ -143,7 +143,19 @@ export default function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
-  const previewStorageRef = useRef<Record<string, Record<string, string>>>({});
+  const [initialPreviewStorage] = useState<Record<string, Record<string, string>>>(() => {
+    try {
+      const saved = localStorage.getItem('mzkarmay-ai-preview-storage');
+      const parsed = saved ? JSON.parse(saved) : {};
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed as Record<string, Record<string, string>>
+        : {};
+    } catch (error) {
+      console.error('Could not restore preview storage:', error);
+      return {};
+    }
+  });
+  const previewStorageRef = useRef<Record<string, Record<string, string>>>(initialPreviewStorage);
   const [previewHeight, setPreviewHeight] = useState(700);
   const previewProjectKey = currentProjectId || 'draft';
   const previewDocument = useMemo(
@@ -156,8 +168,13 @@ export default function App() {
       if (event.source !== previewFrameRef.current?.contentWindow) return;
       const message = event.data;
       if (!message || typeof message !== 'object' || message.projectKey !== previewProjectKey) return;
-      if (message.type === 'MZKARMAY_PREVIEW_STORAGE' && message.storage && typeof message.storage === 'object') {
+      if (message.type === 'MZKARMAY_PREVIEW_STORAGE' && message.storage && typeof message.storage === 'object' && !Array.isArray(message.storage)) {
         previewStorageRef.current[previewProjectKey] = message.storage as Record<string, string>;
+        try {
+          localStorage.setItem('mzkarmay-ai-preview-storage', JSON.stringify(previewStorageRef.current));
+        } catch (error) {
+          console.error('Could not persist preview storage:', error);
+        }
       }
       if (message.type === 'MZKARMAY_PREVIEW_HEIGHT' && Number.isFinite(message.height)) {
         setPreviewHeight(Math.max(320, Math.min(12000, Math.ceil(message.height))));
@@ -588,6 +605,15 @@ ${html}`
       }
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
       localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html: htmlToSave, prompt, savedAt: now }));
+      // When a new draft is first saved, keep its preview data under the new project ID.
+      if (!currentProjectId && previewStorageRef.current.draft) {
+        previewStorageRef.current[id] = previewStorageRef.current.draft;
+        try {
+          localStorage.setItem('mzkarmay-ai-preview-storage', JSON.stringify(previewStorageRef.current));
+        } catch (error) {
+          console.error('Could not migrate preview storage:', error);
+        }
+      }
       setProjects(nextProjects);
       setCurrentProjectId(id);
       setDraftSaved(true);
