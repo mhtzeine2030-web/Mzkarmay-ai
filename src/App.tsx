@@ -304,7 +304,7 @@ All cart, quantity, total, settings, and checkout controls must work on mobile a
 CRITICAL PREVIEW STORAGE COMPATIBILITY:
 The website may run inside a sandboxed iframe preview where window.localStorage access throws a SecurityError because the document has an opaque origin. NEVER access localStorage directly during startup or application logic.
 Create a safe storage adapter at the very beginning of the script. Its getItem, setItem, and removeItem methods must each try window.localStorage inside try/catch and use an in-memory object/Map fallback when storage is blocked. Route EVERY read/write/remove operation through this adapter, including tasks, settings, cart, WhatsApp number, and saved preferences. Initialize the adapter before any app code that reads saved data. Guard JSON.parse with try/catch and sensible defaults so corrupt or unavailable stored data cannot stop the script.
-Do not let storage errors prevent event listeners, form submission handlers, buttons, rendering, or other app interactions from being initialized. In preview, fallback data may last only until the preview reloads; on a normal published website, browser storage should persist normally.
+Do not let storage errors prevent event listeners, form submission handlers, buttons, rendering, or other app interactions from being initialized. In preview, fallback data may last only until the preview reloads; on a normal published website, browser storage should persist normally.`
         })
       });
 
