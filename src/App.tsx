@@ -350,8 +350,9 @@ In preview, fallback data may last only until the preview reloads; on a normal p
     }
   };
 
-  const editWebsite = async () => {
-    if (!html || !editPrompt.trim() || editing) return;
+  const editWebsite = async (requestedPrompt?: string) => {
+    const requestedChange = (requestedPrompt ?? editPrompt).trim();
+    if (!html || !requestedChange || editing) return;
 
     setEditing(true);
     setError('');
@@ -380,7 +381,7 @@ MANDATORY CHANGE-PRESERVATION RULES:
 - Return complete HTML, not a diff or partial snippet. Do not explain anything outside the HTML code block.
 
 USER REQUEST:
-${editPrompt.trim()}
+${requestedChange}
 
 CURRENT WEBSITE HTML:
 ${html}`
@@ -410,6 +411,7 @@ ${html}`
       setResult(data.result);
       setEditPrompt('');
       setTab('preview');
+      if (requestedPrompt) await saveDraft(updatedHtml);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -440,8 +442,9 @@ ${html}`
     }
   };
 
-  const saveDraft = async () => {
-    if (!html.trim() || savingDraft) return;
+  const saveDraft = async (htmlOverride?: string) => {
+    const htmlToSave = htmlOverride ?? html;
+    if (!htmlToSave.trim() || savingDraft) return;
     setSavingDraft(true);
     setPublishError('');
     try {
@@ -450,7 +453,7 @@ ${html}`
       const existing = projects.find(item => item.id === id);
       const cloudId = existing?.cloudId || (authUser ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : id) : undefined);
       const savedPrompt = appCreationMode ? `[MZKARMAY_APP]\n${prompt}` : prompt;
-      const project = { id, cloudId, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt: savedPrompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
+      const project = { id, cloudId, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html: htmlToSave, prompt: savedPrompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
       const nextProjects = [project, ...projects.filter(item => item.id !== id)];
       if (authUser && cloudId) {
         const { error } = await supabase.from('user_projects').upsert({
@@ -464,7 +467,7 @@ ${html}`
         if (error) throw error;
       }
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
-      localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html, prompt, savedAt: now }));
+      localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html: htmlToSave, prompt, savedAt: now }));
       setProjects(nextProjects);
       setCurrentProjectId(id);
       setDraftSaved(true);
@@ -1142,6 +1145,10 @@ ${html}`
                 <button className="send" type="button" onClick={editWebsite} disabled={editing || !editPrompt.trim()}>
                   <WandSparkles size={16} />
                   {editing ? (ar ? 'جارٍ التعديل...' : 'Editing...') : (ar ? 'تطبيق التعديل' : 'Apply changes')}
+                </button>
+                <button className="send" type="button" onClick={() => void editWebsite(ar ? 'أصلح هذا التطبيق الحالي دون إعادة تصميمه أو حذف أي ميزة أو بيانات. افحص كود HTML وJavaScript الحالي. أصلح جميع مشاكل القوائم المتكررة بحيث تُضاف كل مهمة أو عنصر إلى المصفوفة ولا تستبدل العناصر السابقة، واحفظ المصفوفة كاملة ثم أعد عرض جميع العناصر بعد كل إضافة. افحص كذلك أخطاء التخزين الآمن وحافظ على مفاتيح التخزين والبيانات الحالية. اجعل الصفحة قابلة للتمرير عموديًا على الهاتف والكمبيوتر، وأزل فقط قيود الارتفاع الثابت أو overflow:hidden التي تمنع التمرير من الحاويات الرئيسية. حافظ على التصميم والألوان والنصوص والأقسام والوظائف الحالية كما هي. لا تحذف بيانات المستخدم ولا تغيّر أسماء المعرفات أو مفاتيح التخزين. أعد ملف HTML كاملًا صالحًا.' : 'Repair this existing app without redesigning it or removing any feature or data. Inspect its current HTML and JavaScript. Fix repeated lists so each task or item is appended to the array rather than replacing previous items, save the complete array, and render every item after each addition. Check safe storage handling while preserving existing storage keys and data. Make the page vertically scrollable on phones and desktops; remove only fixed-height or overflow:hidden constraints on root containers that block scrolling. Preserve the current design, colors, text, sections, and functionality. Do not delete user data or rename IDs or storage keys. Return the complete valid HTML document.')} disabled={editing || !html}>
+                  <WandSparkles size={16} />
+                  {editing ? (ar ? 'جارٍ الإصلاح...' : 'Repairing...') : (ar ? 'إصلاح التطبيق الحالي' : 'Repair current app')}
                 </button>
               </div>
             </section>
