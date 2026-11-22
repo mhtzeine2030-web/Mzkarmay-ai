@@ -1142,7 +1142,7 @@ ${html}`
               />
               <div className="prompt-footer">
                 <span className="hint">{ar ? 'سيتم الحفاظ على الموقع الحالي وميزاته.' : 'Your current website and its features will be preserved.'}</span>
-                <button className="send" type="button" onClick={editWebsite} disabled={editing || !editPrompt.trim()}>
+                <button className="send" type="button" onClick={() => void editWebsite()} disabled={editing || !editPrompt.trim()}>
                   <WandSparkles size={16} />
                   {editing ? (ar ? 'جارٍ التعديل...' : 'Editing...') : (ar ? 'تطبيق التعديل' : 'Apply changes')}
                 </button>
@@ -1182,7 +1182,7 @@ ${html}`
 
               <button
                 type="button"
-                onClick={saveDraft}
+                onClick={() => void saveDraft()}
                 disabled={!html || savingDraft}
                 style={{
                   padding: '9px 12px',
