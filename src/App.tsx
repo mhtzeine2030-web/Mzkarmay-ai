@@ -843,6 +843,81 @@ ${html}`
               <p>{ar ? 'سيظهر هنا قسم إدارة التطبيقات التي تنشئها.' : 'Your created apps will appear here.'}</p>
             </section>
           )}
+          {showProjects && (
+            <section id="my-projects" className="workspace" style={{ marginBottom: 20 }}>
+              <div className="workspace-bar">
+                <div><LayoutDashboard size={16} /><b>{ar ? 'مشاريعي المحفوظة' : 'My saved projects'}</b><small> / {projects.length}</small></div>
+                <button type="button" onClick={() => openSection('home')}>{ar ? 'إغلاق' : 'Close'}</button>
+              </div>
+              <div style={{ padding: 18 }}>
+                {projects.length === 0 ? (
+                  <p>{ar ? 'لا توجد مشاريع محفوظة. افتح مشروعاً واضغط «حفظ التعديلات» لإضافته هنا.' : 'No saved projects yet. Open a project and click Save changes to add it here.'}</p>
+                ) : projects.map(project => (
+                  <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
+                    <div style={{ minWidth: 0, flex: '1 1 180px' }}>
+                      <b style={{ display: 'block', overflowWrap: 'anywhere' }}>{project.title}</b>
+                      <small>{ar ? 'آخر حفظ: ' : 'Last saved: '}{new Date(project.updatedAt).toLocaleString(ar ? 'ar' : 'en')}</small>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => openProject(project)}>{ar ? 'فتح وتعديل' : 'Open & edit'}</button>
+                      <button type="button" onClick={() => { if (window.confirm(ar ? 'هل تريد حذف هذا المشروع المحفوظ؟' : 'Delete this saved project?')) deleteProject(project.id); }}>{ar ? 'حذف' : 'Delete'}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {showPublished && (
+            <section id="published-sites" className="workspace" style={{ marginBottom: 20 }}>
+              <div className="workspace-bar">
+                <div>
+                  <Globe2 size={16} />
+                  <b>{ar ? 'المواقع المنشورة' : 'Published sites'}</b>
+                  <small> / {publishedSites.length}</small>
+                </div>
+                <button type="button" onClick={() => openSection('home')}>
+                  {ar ? 'إغلاق' : 'Close'}
+                </button>
+              </div>
+              <div style={{ padding: 18 }}>
+                {publishedSites.length === 0 ? (
+                  <p>{ar ? 'لا توجد مواقع منشورة حتى الآن.' : 'No published sites yet.'}</p>
+                ) : publishedSites.map(site => (
+                  <div
+                    key={site.pathname}
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      padding: '12px 0',
+                      borderBottom: '1px solid #e5e7eb'
+                    }}
+                  >
+                    <a href={site.url} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere' }}>
+                      {site.url}
+                    </a>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                      <small>
+                        {new Date(site.uploadedAt).toLocaleString(ar ? 'ar' : 'en')}
+                      </small>
+                      <button
+                        type="button"
+                        onClick={() => void importPublishedSite(site)}
+                        disabled={!!importingSite}
+                      >
+                        {importingSite === site.pathname
+                          ? (ar ? 'جارٍ الاستيراد...' : 'Importing...')
+                          : (ar ? 'استيراد إلى مشاريعي وتعديل' : 'Import to projects & edit')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div style={{ display: showDashboard || showProjects || showPublished || showApps ? 'none' : 'block' }}>
           <div className="welcome">
             <div className="eyebrow">
@@ -990,81 +1065,6 @@ ${html}`
               {ar ? 'رسالة: ' : 'Message: '}
               {publishError}
             </div>
-          )}
-
-          {showProjects && (
-            <section id="my-projects" className="workspace" style={{ marginBottom: 20 }}>
-              <div className="workspace-bar">
-                <div><LayoutDashboard size={16} /><b>{ar ? 'مشاريعي المحفوظة' : 'My saved projects'}</b><small> / {projects.length}</small></div>
-                <button type="button" onClick={() => openSection('home')}>{ar ? 'إغلاق' : 'Close'}</button>
-              </div>
-              <div style={{ padding: 18 }}>
-                {projects.length === 0 ? (
-                  <p>{ar ? 'لا توجد مشاريع محفوظة. افتح مشروعاً واضغط «حفظ التعديلات» لإضافته هنا.' : 'No saved projects yet. Open a project and click Save changes to add it here.'}</p>
-                ) : projects.map(project => (
-                  <div key={project.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
-                    <div style={{ minWidth: 0, flex: '1 1 180px' }}>
-                      <b style={{ display: 'block', overflowWrap: 'anywhere' }}>{project.title}</b>
-                      <small>{ar ? 'آخر حفظ: ' : 'Last saved: '}{new Date(project.updatedAt).toLocaleString(ar ? 'ar' : 'en')}</small>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="button" onClick={() => openProject(project)}>{ar ? 'فتح وتعديل' : 'Open & edit'}</button>
-                      <button type="button" onClick={() => { if (window.confirm(ar ? 'هل تريد حذف هذا المشروع المحفوظ؟' : 'Delete this saved project?')) deleteProject(project.id); }}>{ar ? 'حذف' : 'Delete'}</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {showPublished && (
-            <section id="published-sites" className="workspace" style={{ marginBottom: 20 }}>
-              <div className="workspace-bar">
-                <div>
-                  <Globe2 size={16} />
-                  <b>{ar ? 'المواقع المنشورة' : 'Published sites'}</b>
-                  <small> / {publishedSites.length}</small>
-                </div>
-                <button type="button" onClick={() => openSection('home')}>
-                  {ar ? 'إغلاق' : 'Close'}
-                </button>
-              </div>
-              <div style={{ padding: 18 }}>
-                {publishedSites.length === 0 ? (
-                  <p>{ar ? 'لا توجد مواقع منشورة حتى الآن.' : 'No published sites yet.'}</p>
-                ) : publishedSites.map(site => (
-                  <div
-                    key={site.pathname}
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      justifyContent: 'space-between',
-                      gap: 10,
-                      padding: '12px 0',
-                      borderBottom: '1px solid #e5e7eb'
-                    }}
-                  >
-                    <a href={site.url} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere' }}>
-                      {site.url}
-                    </a>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                      <small>
-                        {new Date(site.uploadedAt).toLocaleString(ar ? 'ar' : 'en')}
-                      </small>
-                      <button
-                        type="button"
-                        onClick={() => void importPublishedSite(site)}
-                        disabled={!!importingSite}
-                      >
-                        {importingSite === site.pathname
-                          ? (ar ? 'جارٍ الاستيراد...' : 'Importing...')
-                          : (ar ? 'استيراد إلى مشاريعي وتعديل' : 'Import to projects & edit')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
           )}
 
           {html && (
