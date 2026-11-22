@@ -304,7 +304,9 @@ All cart, quantity, total, settings, and checkout controls must work on mobile a
 CRITICAL PREVIEW STORAGE COMPATIBILITY:
 The website may run inside a sandboxed iframe preview where window.localStorage access throws a SecurityError because the document has an opaque origin. NEVER access localStorage directly during startup or application logic.
 Create a safe storage adapter at the very beginning of the script. Its getItem, setItem, and removeItem methods must each try window.localStorage inside try/catch and use an in-memory object/Map fallback when storage is blocked. Route EVERY read/write/remove operation through this adapter, including tasks, settings, cart, WhatsApp number, and saved preferences. Initialize the adapter before any app code that reads saved data. Guard JSON.parse with try/catch and sensible defaults so corrupt or unavailable stored data cannot stop the script.
-Do not let storage errors prevent event listeners, form submission handlers, buttons, rendering, or other app interactions from being initialized. In preview, fallback data may last only until the preview reloads; on a normal published website, browser storage should persist normally.`
+Do not let storage errors prevent event listeners, form submission handlers, buttons, rendering, or other app interactions from being initialized. - For list-based features such as tasks, products, notes, messages, or cart items, store records in an array and render the ENTIRE array every time. On add: validate input, append a new record, save the full array, then re-render. The render function must clear the list container and loop over every array item; never render only the first item or replace the array with a single item. Give each record a stable unique id. Do not clear the input until the item has been saved and rendered.
+- Make the page vertically scrollable on phones and desktops. Use min-height rather than fixed height for page content; keep html and body at min-height: 100%, allow body overflow-y: auto, and use -webkit-overflow-scrolling: touch. Do not apply overflow: hidden or fixed positioning to page/root containers in a way that prevents scrolling. Avoid trapping the whole app inside a fixed 100vh container; use internal scrolling only for intentionally bounded panels.
+In preview, fallback data may last only until the preview reloads; on a normal published website, browser storage should persist normally.`
         })
       });
 
@@ -373,6 +375,8 @@ MANDATORY CHANGE-PRESERVATION RULES:
 - If the request affects one element, edit only that element and its directly necessary supporting code.
 - Before returning, mentally compare the updated HTML with the current HTML and verify that all unrelated code and all earlier changes remain intact.
 - Keep any safe storage adapter and its memory fallback intact. Never replace safe storage access with direct localStorage calls; preview may run in a sandbox where localStorage throws SecurityError.
+- When the requested change involves a list or repeated records, trace the full add, save, and render flow. Ensure every item is appended rather than replacing the array, and ensure rendering loops over all items after each addition. Preserve existing records and IDs.
+- When the requested change involves scrolling or a long page, inspect html/body and ancestor containers for fixed heights, overflow:hidden, or fixed positioning that blocks vertical scrolling. Correct only the responsible styles; preserve the visual design and intentional panel scrolling.
 - Return complete HTML, not a diff or partial snippet. Do not explain anything outside the HTML code block.
 
 USER REQUEST:
