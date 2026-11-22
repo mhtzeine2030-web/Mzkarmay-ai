@@ -167,16 +167,23 @@ export default function App() {
     const handlePreviewMessage = (event: MessageEvent) => {
       if (event.source !== previewFrameRef.current?.contentWindow) return;
       const message = event.data;
-      if (!message || typeof message !== 'object' || message.projectKey !== previewProjectKey) return;
-      if (message.type === 'MZKARMAY_PREVIEW_STORAGE' && message.storage && typeof message.storage === 'object' && !Array.isArray(message.storage)) {
-        previewStorageRef.current[previewProjectKey] = message.storage as Record<string, string>;
+      if (!message || typeof message !== 'object') return;
+      if (message.type === 'MZKARMAY_PREVIEW_STORAGE' && typeof message.projectKey === 'string' && message.projectKey && message.storage && typeof message.storage === 'object' && !Array.isArray(message.storage)) {
+        const messageKey = message.projectKey;
+        const storage = message.storage as Record<string, string>;
+        // Accept queued messages from the previous "draft" iframe after a save
+        // assigns the draft a permanent project ID.
+        previewStorageRef.current[messageKey] = storage;
+        if (messageKey === 'draft' && currentProjectId) {
+          previewStorageRef.current[currentProjectId] = storage;
+        }
         try {
           localStorage.setItem('mzkarmay-ai-preview-storage', JSON.stringify(previewStorageRef.current));
         } catch (error) {
           console.error('Could not persist preview storage:', error);
         }
       }
-      if (message.type === 'MZKARMAY_PREVIEW_HEIGHT' && Number.isFinite(message.height)) {
+      if (message.type === 'MZKARMAY_PREVIEW_HEIGHT' && message.projectKey === previewProjectKey && Number.isFinite(message.height)) {
         setPreviewHeight(Math.max(320, Math.min(12000, Math.ceil(message.height))));
       }
     };
@@ -605,9 +612,15 @@ ${html}`
       }
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(nextProjects));
       localStorage.setItem('mzkarmay-ai-draft', JSON.stringify({ html: htmlToSave, prompt, savedAt: now }));
-      // When a new draft is first saved, keep its preview data under the new project ID.
-      if (!currentProjectId && previewStorageRef.current.draft) {
-        previewStorageRef.current[id] = previewStorageRef.current.draft;
+      // Preserve draft data when saving, even if queued iframe messages arrive
+      // around the same time that the draft receives its permanent project ID.
+      const draftPreviewStorage = previewStorageRef.current.draft;
+      const projectPreviewStorage = previewStorageRef.current[id];
+      if (draftPreviewStorage || projectPreviewStorage) {
+        previewStorageRef.current[id] = {
+          ...(draftPreviewStorage || {}),
+          ...(projectPreviewStorage || {})
+        };
         try {
           localStorage.setItem('mzkarmay-ai-preview-storage', JSON.stringify(previewStorageRef.current));
         } catch (error) {
