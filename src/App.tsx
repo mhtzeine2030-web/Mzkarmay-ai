@@ -43,6 +43,7 @@ export default function App() {
   }>>([]);
   const [showPublished, setShowPublished] = useState(false);
   const [showApps, setShowApps] = useState(false);
+  const [appCreationMode, setAppCreationMode] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [editing, setEditing] = useState(false);
   const [publishError, setPublishError] = useState('');
@@ -285,7 +286,7 @@ export default function App() {
           'Accept': 'application/json'
         },
         body: JSON.stringify({
-          prompt: `${prompt.trim()}
+          prompt: `${appCreationMode ? 'Create a mobile-first web application, not a marketing website. Make it feel like a polished native app with touch-friendly navigation and controls, responsive screens, and fully working core interactions. Include iOS home-screen metadata and an app icon using an inline SVG data URI where possible. Keep the complete app self-contained in this single HTML file. ' : ''}${prompt.trim()}
 
 IMPORTANT: Create a complete, standalone, responsive website.
 Return the complete HTML document, including CSS and JavaScript.
@@ -431,7 +432,8 @@ ${html}`
       const id = currentProjectId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `project-${Date.now()}`);
       const existing = projects.find(item => item.id === id);
       const cloudId = existing?.cloudId || (authUser ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : id) : undefined);
-      const project = { id, cloudId, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
+      const savedPrompt = appCreationMode ? `[MZKARMAY_APP]\n${prompt}` : prompt;
+      const project = { id, cloudId, title: prompt.trim().slice(0, 80) || (ar ? 'مشروع بدون عنوان' : 'Untitled project'), html, prompt: savedPrompt, updatedAt: now, publishedPathname: currentPublishedPathname || undefined };
       const nextProjects = [project, ...projects.filter(item => item.id !== id)];
       if (authUser && cloudId) {
         const { error } = await supabase.from('user_projects').upsert({
@@ -500,7 +502,9 @@ ${html}`
     setCurrentProjectId(project.id);
     setCurrentPublishedPathname(project.publishedPathname || '');
     setHtml(project.html);
-    setPrompt(project.prompt);
+    const isApp = project.prompt.startsWith('[MZKARMAY_APP]');
+    setAppCreationMode(isApp);
+    setPrompt(project.prompt.replace(/^\\[MZKARMAY_APP\\]\\n?/, ''));
     setResult(project.html);
     setTab('preview');
     setDraftSaved(true);
@@ -598,7 +602,7 @@ ${html}`
         body: JSON.stringify({
           html,
           title: prompt.trim().slice(0, 80),
-          prompt,
+          prompt: appCreationMode ? `[MZKARMAY_APP]\n${prompt}` : prompt,
           projectId: currentProject?.cloudId
         })
       });
@@ -694,6 +698,7 @@ ${html}`
               localStorage.removeItem('mzkarmay-ai-draft');
               setCurrentProjectId('');
               setCurrentPublishedPathname('');
+              setAppCreationMode(false);
               openSection('home');
               setDraftSaved(false);
               setPrompt('');
@@ -839,8 +844,41 @@ ${html}`
           )}
           {showApps && (
             <section id="apps" className="workspace" style={{ marginBottom: 24, padding: 22 }}>
-              <h2>{ar ? 'التطبيقات' : 'Apps'}</h2>
-              <p>{ar ? 'سيظهر هنا قسم إدارة التطبيقات التي تنشئها.' : 'Your created apps will appear here.'}</p>
+              <div className="workspace-bar" style={{ marginBottom: 18 }}>
+                <div><Smartphone size={18} /><b>{ar ? 'تطبيقاتي' : 'My apps'}</b><small> / {projects.filter(project => project.prompt.startsWith('[MZKARMAY_APP]')).length}</small></div>
+                <button type="button" className="send" onClick={() => {
+                  setAppCreationMode(true); setCurrentProjectId(''); setCurrentPublishedPathname('');
+                  setPrompt(''); setHtml(''); setResult(''); setError(''); setPublishError('');
+                  setDraftSaved(false); setTab('preview'); openSection('home');
+                }}><Plus size={15} />{ar ? 'إنشاء تطبيق جديد' : 'Create new app'}</button>
+              </div>
+              <p style={{ color: '#64748b', margin: '0 0 18px' }}>{ar ? 'أنشئ تطبيق ويب بتصميم مناسب للهاتف، ثم احفظه وانشره برابط مستقل. يمكنك فتح الرابط وإضافته إلى الشاشة الرئيسية من المتصفح.' : 'Build a mobile-first web app, save it, and publish it at its own link. You can open the link and add it to your home screen from your browser.'}</p>
+              {projects.filter(project => project.prompt.startsWith('[MZKARMAY_APP]')).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '38px 16px', border: '1px dashed #cbd5e1', borderRadius: 14 }}>
+                  <Smartphone size={32} style={{ color: '#64748b', marginBottom: 10 }} />
+                  <b style={{ display: 'block', marginBottom: 8 }}>{ar ? 'لا توجد تطبيقات محفوظة بعد' : 'No saved apps yet'}</b>
+                  <p style={{ color: '#64748b', margin: '0 0 16px' }}>{ar ? 'ابدأ بإنشاء أول تطبيق ويب لك.' : 'Start by creating your first web app.'}</p>
+                  <button type="button" className="send" onClick={() => {
+                    setAppCreationMode(true); setCurrentProjectId(''); setCurrentPublishedPathname('');
+                    setPrompt(''); setHtml(''); setResult(''); setError(''); setDraftSaved(false);
+                    setTab('preview'); openSection('home');
+                  }}><Plus size={15} />{ar ? 'إنشاء أول تطبيق' : 'Create your first app'}</button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+                  {projects.filter(project => project.prompt.startsWith('[MZKARMAY_APP]')).map(project => (
+                    <article key={project.id} style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 16, background: '#fff', minWidth: 0 }}>
+                      <div style={{ width: 46, height: 46, borderRadius: 12, background: '#eef2ff', color: '#4f46e5', display: 'grid', placeItems: 'center', marginBottom: 12 }}><Smartphone size={23} /></div>
+                      <b style={{ display: 'block', overflowWrap: 'anywhere', marginBottom: 5 }}>{project.title}</b>
+                      <small style={{ color: '#64748b' }}>{ar ? 'آخر حفظ: ' : 'Last saved: '}{new Date(project.updatedAt).toLocaleDateString(ar ? 'ar' : 'en')}</small>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+                        <button type="button" onClick={() => { openProject(project); openSection('home'); }}>{ar ? 'فتح وتعديل' : 'Open & edit'}</button>
+                        {project.publishedPathname && <button type="button" onClick={() => window.open('/api/site?pathname=' + encodeURIComponent(project.publishedPathname!), '_blank', 'noopener,noreferrer')}>{ar ? 'فتح التطبيق' : 'Open app'}</button>}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
           )}
           {showProjects && (
