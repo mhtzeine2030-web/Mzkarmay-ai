@@ -964,13 +964,13 @@ ${html}`
             </div>
 
             <h1>
-              {ar ? 'ماذا تريد أن تبني اليوم؟' : 'What do you want to build today?'}
+              {appCreationMode ? (ar ? 'أنشئ تطبيقك الجديد' : 'Build your new app') : (ar ? 'ماذا تريد أن تبني اليوم؟' : 'What do you want to build today?')}
             </h1>
 
             <p>
-              {ar
-                ? 'صف فكرتك، وسنساعدك على تحويلها إلى موقع أو تطبيق.'
-                : 'Describe your idea and turn it into a website or app.'}
+              {appCreationMode
+                ? (ar ? 'صف التطبيق الذي تريده، وسننشئ تجربة مناسبة للهاتف.' : 'Describe your app and we will create a mobile-first experience.')
+                : (ar ? 'صف فكرتك، وسنساعدك على تحويلها إلى موقع أو تطبيق.' : 'Describe your idea and turn it into a website or app.')}
             </p>
           </div>
 
