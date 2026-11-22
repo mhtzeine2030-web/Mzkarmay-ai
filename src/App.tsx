@@ -118,6 +118,7 @@ export default function App() {
   const [editPrompt, setEditPrompt] = useState('');
   const [editing, setEditing] = useState(false);
   const [editStatus, setEditStatus] = useState('');
+  const [editAction, setEditAction] = useState<'apply' | 'repair' | null>(null);
   const [publishError, setPublishError] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -455,6 +456,7 @@ In preview, fallback data may last only until the preview reloads; on a normal p
     if (!html || !requestedChange || editing) return;
 
     setEditing(true);
+    setEditAction(requestedPrompt ? 'repair' : 'apply');
     setError('');
     setEditStatus(ar ? 'جارٍ تطبيق التعديل...' : 'Applying changes...');
 
@@ -519,6 +521,7 @@ ${html}`
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setEditing(false);
+      setEditAction(null);
     }
   };
 
@@ -1258,11 +1261,11 @@ ${html}`
                 <span className="hint">{ar ? 'سيتم الحفاظ على الموقع الحالي وميزاته.' : 'Your current website and its features will be preserved.'}</span>
                 <button className="send" type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); void applyWebsiteChanges(); }} disabled={editing || !editPrompt.trim()}>
                   <WandSparkles size={16} />
-                  {editing ? (ar ? 'جارٍ التعديل...' : 'Editing...') : (ar ? 'تطبيق التعديل' : 'Apply changes')}
+                  {editAction === 'apply' ? (ar ? 'جارٍ التعديل...' : 'Editing...') : (ar ? 'تطبيق التعديل' : 'Apply changes')}
                 </button>
                 <button className="send" type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); void repairCurrentWebsite(); }} disabled={editing || !html}>
                   <WandSparkles size={16} />
-                  {editing ? (ar ? 'جارٍ الإصلاح...' : 'Repairing...') : (ar ? 'إصلاح التطبيق الحالي' : 'Repair current app')}
+                  {editAction === 'repair' ? (ar ? 'جارٍ الإصلاح...' : 'Repairing...') : (ar ? 'إصلاح التطبيق الحالي' : 'Repair current app')}
                 </button>
               </div>
               {editStatus && <div className="notice" role="status" aria-live="polite">{editStatus}</div>}
