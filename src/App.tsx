@@ -1432,7 +1432,7 @@ ${html}`
                   ref={previewFrameRef}
                   title="Generated website preview"
                   srcDoc={previewDocument}
-                  sandbox="allow-scripts allow-forms"
+                  sandbox="allow-scripts allow-forms allow-downloads allow-modals"
                   referrerPolicy="no-referrer"
                   style={{
                     display: 'block',
