@@ -117,6 +117,7 @@ export default function App() {
   const [appCreationMode, setAppCreationMode] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [editing, setEditing] = useState(false);
+  const [editStatus, setEditStatus] = useState('');
   const [publishError, setPublishError] = useState('');
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -455,6 +456,7 @@ In preview, fallback data may last only until the preview reloads; on a normal p
 
     setEditing(true);
     setError('');
+    setEditStatus(ar ? 'جارٍ تطبيق التعديل...' : 'Applying changes...');
 
     try {
       const response = await fetch('/api/generate', {
@@ -510,12 +512,25 @@ ${html}`
       setResult(data.result);
       setEditPrompt('');
       setTab('preview');
+      setEditStatus(ar ? 'تم تطبيق التعديل بنجاح.' : 'Changes applied successfully.');
       if (requestedPrompt) await saveDraft(updatedHtml);
     } catch (err) {
+      setEditStatus('');
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setEditing(false);
     }
+  };
+
+  const applyWebsiteChanges = async () => {
+    await editWebsite(editPrompt);
+  };
+
+  const repairCurrentWebsite = async () => {
+    const repairPrompt = ar
+      ? 'أصلح هذا التطبيق الحالي دون إعادة تصميمه أو حذف أي ميزة أو بيانات. افحص كود HTML وJavaScript الحالي. أصلح جميع مشاكل القوائم المتكررة بحيث تُضاف كل مهمة أو عنصر إلى المصفوفة ولا تستبدل العناصر السابقة، واحفظ المصفوفة كاملة ثم أعد عرض جميع العناصر بعد كل إضافة. افحص كذلك أخطاء التخزين الآمن وحافظ على مفاتيح التخزين والبيانات الحالية. اجعل الصفحة قابلة للتمرير عموديًا على الهاتف والكمبيوتر، وأزل فقط قيود الارتفاع الثابت أو overflow:hidden التي تمنع التمرير من الحاويات الرئيسية. حافظ على التصميم والألوان والنصوص والأقسام والوظائف الحالية كما هي. لا تحذف بيانات المستخدم ولا تغيّر أسماء المعرفات أو مفاتيح التخزين. أعد ملف HTML كاملًا صالحًا.'
+      : 'Repair this existing app without redesigning it or removing any feature or data. Inspect its current HTML and JavaScript. Fix repeated lists so each task or item is appended to the array rather than replacing previous items, save the complete array, and render every item after each addition. Check safe storage handling while preserving existing storage keys and data. Make the page vertically scrollable on phones and desktops; remove only fixed-height or overflow:hidden constraints on root containers that block scrolling. Preserve the current design, colors, text, sections, and functionality. Do not delete user data or rename IDs or storage keys. Return the complete valid HTML document.';
+    await editWebsite(repairPrompt);
   };
 
   const loadPublishedSites = async () => {
@@ -1241,15 +1256,16 @@ ${html}`
               />
               <div className="prompt-footer">
                 <span className="hint">{ar ? 'سيتم الحفاظ على الموقع الحالي وميزاته.' : 'Your current website and its features will be preserved.'}</span>
-                <button className="send" type="button" onClick={() => void editWebsite()} disabled={editing || !editPrompt.trim()}>
+                <button className="send" type="button" onClick={() => void applyWebsiteChanges()} disabled={editing || !editPrompt.trim()}>
                   <WandSparkles size={16} />
                   {editing ? (ar ? 'جارٍ التعديل...' : 'Editing...') : (ar ? 'تطبيق التعديل' : 'Apply changes')}
                 </button>
-                <button className="send" type="button" onClick={() => void editWebsite(ar ? 'أصلح هذا التطبيق الحالي دون إعادة تصميمه أو حذف أي ميزة أو بيانات. افحص كود HTML وJavaScript الحالي. أصلح جميع مشاكل القوائم المتكررة بحيث تُضاف كل مهمة أو عنصر إلى المصفوفة ولا تستبدل العناصر السابقة، واحفظ المصفوفة كاملة ثم أعد عرض جميع العناصر بعد كل إضافة. افحص كذلك أخطاء التخزين الآمن وحافظ على مفاتيح التخزين والبيانات الحالية. اجعل الصفحة قابلة للتمرير عموديًا على الهاتف والكمبيوتر، وأزل فقط قيود الارتفاع الثابت أو overflow:hidden التي تمنع التمرير من الحاويات الرئيسية. حافظ على التصميم والألوان والنصوص والأقسام والوظائف الحالية كما هي. لا تحذف بيانات المستخدم ولا تغيّر أسماء المعرفات أو مفاتيح التخزين. أعد ملف HTML كاملًا صالحًا.' : 'Repair this existing app without redesigning it or removing any feature or data. Inspect its current HTML and JavaScript. Fix repeated lists so each task or item is appended to the array rather than replacing previous items, save the complete array, and render every item after each addition. Check safe storage handling while preserving existing storage keys and data. Make the page vertically scrollable on phones and desktops; remove only fixed-height or overflow:hidden constraints on root containers that block scrolling. Preserve the current design, colors, text, sections, and functionality. Do not delete user data or rename IDs or storage keys. Return the complete valid HTML document.')} disabled={editing || !html}>
+                <button className="send" type="button" onClick={() => void repairCurrentWebsite()} disabled={editing || !html}>
                   <WandSparkles size={16} />
                   {editing ? (ar ? 'جارٍ الإصلاح...' : 'Repairing...') : (ar ? 'إصلاح التطبيق الحالي' : 'Repair current app')}
                 </button>
               </div>
+              {editStatus && <div className="notice" role="status" aria-live="polite">{editStatus}</div>}
             </section>
           )}
 
