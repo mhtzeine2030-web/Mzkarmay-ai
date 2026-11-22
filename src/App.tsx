@@ -504,7 +504,7 @@ ${html}`
     setHtml(project.html);
     const isApp = project.prompt.startsWith('[MZKARMAY_APP]');
     setAppCreationMode(isApp);
-    setPrompt(project.prompt.replace(/^\\[MZKARMAY_APP\\]\\n?/, ''));
+    setPrompt(isApp ? project.prompt.slice('[MZKARMAY_APP]'.length).replace(/^\s*/, '') : project.prompt);
     setResult(project.html);
     setTab('preview');
     setDraftSaved(true);
@@ -542,7 +542,7 @@ ${html}`
 
       const now = new Date().toISOString();
       const updatedProjects = projects.map(project => project.id === currentProjectId
-        ? { ...project, html, prompt, updatedAt: now, publishedPathname: currentPublishedPathname }
+        ? { ...project, html, prompt: appCreationMode ? `[MZKARMAY_APP]\n${prompt}` : prompt, updatedAt: now, publishedPathname: currentPublishedPathname }
         : project);
       localStorage.setItem('mzkarmay-ai-projects', JSON.stringify(updatedProjects));
       setProjects(updatedProjects);
@@ -619,7 +619,7 @@ ${html}`
           cloudId: data.projectId,
           title: prompt.trim().slice(0, 80) || (ar ? 'موقع منشور' : 'Published website'),
           html,
-          prompt,
+          prompt: appCreationMode ? `[MZKARMAY_APP]\n${prompt}` : prompt,
           updatedAt: now,
           publishedPathname: data.pathname
         };
