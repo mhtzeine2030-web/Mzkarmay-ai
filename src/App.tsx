@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './lib/supabase';
 import {
   Sparkles, Plus, Globe2, Smartphone, LayoutDashboard,
@@ -23,6 +23,56 @@ function extractHtml(text: string): string {
   }
 
   return '';
+}
+
+
+function createPreviewDocument(sourceHtml: string, storage: Record<string, string>, projectKey: string): string {
+  const safeStorage = JSON.stringify(storage).replace(/</g, '\\u003c');
+  const safeProjectKey = JSON.stringify(projectKey).replace(/</g, '\\u003c');
+  const bridge = `<script>
+  (function () {
+    const values = ${safeStorage};
+    const projectKey = ${safeProjectKey};
+    const data = values && typeof values === 'object' ? { ...values } : {};
+    const notify = () => parent.postMessage({
+      type: 'MZKARMAY_PREVIEW_STORAGE',
+      projectKey,
+      storage: data
+    }, '*');
+    const storageApi = {
+      get length() { return Object.keys(data).length; },
+      key(index) { return Object.keys(data)[index] ?? null; },
+      getItem(key) { key = String(key); return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null; },
+      setItem(key, value) { data[String(key)] = String(value); notify(); },
+      removeItem(key) { delete data[String(key)]; notify(); },
+      clear() { Object.keys(data).forEach(key => delete data[key]); notify(); }
+    };
+    try {
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        value: storageApi
+      });
+    } catch (error) {}
+    const sendHeight = () => {
+      const height = Math.max(
+        document.documentElement ? document.documentElement.scrollHeight : 0,
+        document.body ? document.body.scrollHeight : 0
+      );
+      parent.postMessage({ type: 'MZKARMAY_PREVIEW_HEIGHT', projectKey, height }, '*');
+    };
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(sendHeight).observe(document.documentElement);
+    }
+    window.addEventListener('load', sendHeight);
+    document.addEventListener('DOMContentLoaded', sendHeight);
+    setTimeout(sendHeight, 0);
+    setTimeout(sendHeight, 250);
+  })();
+  <\/script>`;
+  if (/<head(?:\\s[^>]*)?>/i.test(sourceHtml)) {
+    return sourceHtml.replace(/<head(?:\\s[^>]*)?>/i, match => match + bridge);
+  }
+  return sourceHtml.replace(/<html(?:\\s[^>]*)?>/i, match => match + '<head>' + bridge + '</head>');
 }
 
 export default function App() {
@@ -68,6 +118,34 @@ export default function App() {
   const [siteVisitHistory, setSiteVisitHistory] = useState<Array<{ visit_date: string; visits: number }>>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const previewStorageRef = useRef<Record<string, Record<string, string>>>({});
+  const [previewHeight, setPreviewHeight] = useState(700);
+  const previewProjectKey = currentProjectId || 'draft';
+  const previewDocument = useMemo(
+    () => createPreviewDocument(html, previewStorageRef.current[previewProjectKey] || {}, previewProjectKey),
+    [html, previewProjectKey]
+  );
+
+  useEffect(() => {
+    const handlePreviewMessage = (event: MessageEvent) => {
+      if (event.source !== previewFrameRef.current?.contentWindow) return;
+      const message = event.data;
+      if (!message || typeof message !== 'object' || message.projectKey !== previewProjectKey) return;
+      if (message.type === 'MZKARMAY_PREVIEW_STORAGE' && message.storage && typeof message.storage === 'object') {
+        previewStorageRef.current[previewProjectKey] = message.storage as Record<string, string>;
+      }
+      if (message.type === 'MZKARMAY_PREVIEW_HEIGHT' && Number.isFinite(message.height)) {
+        setPreviewHeight(Math.max(320, Math.min(12000, Math.ceil(message.height))));
+      }
+    };
+    window.addEventListener('message', handlePreviewMessage);
+    return () => window.removeEventListener('message', handlePreviewMessage);
+  }, [previewProjectKey]);
+
+  useEffect(() => {
+    setPreviewHeight(700);
+  }, [html, previewProjectKey]);
 
   useEffect(() => {
     try {
@@ -1269,14 +1347,15 @@ ${html}`
                 </pre>
               ) : html ? (
                 <iframe
+                  ref={previewFrameRef}
                   title="Generated website preview"
-                  srcDoc={html}
+                  srcDoc={previewDocument}
                   sandbox="allow-scripts allow-forms"
                   referrerPolicy="no-referrer"
                   style={{
                     display: 'block',
                     width: '100%',
-                    height: '700px',
+                    height: `${previewHeight}px`,
                     border: 'none',
                     background: '#ffffff'
                   }}
