@@ -114,6 +114,7 @@ export default function App() {
   }>>([]);
   const [showPublished, setShowPublished] = useState(false);
   const [showApps, setShowApps] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [appCreationMode, setAppCreationMode] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [editing, setEditing] = useState(false);
@@ -361,11 +362,12 @@ export default function App() {
 
   const ar = language === 'ar';
 
-  const openSection = (section: 'home' | 'dashboard' | 'projects' | 'published' | 'apps') => {
+  const openSection = (section: 'home' | 'dashboard' | 'projects' | 'published' | 'apps' | 'settings') => {
     setShowDashboard(section === 'dashboard');
     setShowProjects(section === 'projects');
     setShowPublished(section === 'published');
     setShowApps(section === 'apps');
+    setShowSettings(section === 'settings');
     setSelectedAnalyticsSite(null);
     setSiteVisitHistory([]);
     setHistoryError('');
@@ -923,7 +925,7 @@ ${html}`
           </a>
 
           <div className="side-bottom">
-            <a className="nav">
+            <a className={showSettings ? 'nav active' : 'nav'} href="#settings" onClick={e => { e.preventDefault(); openSection('settings'); }}>
               <Settings size={17} />
               {ar ? 'الإعدادات' : 'Settings'}
             </a>
@@ -941,6 +943,46 @@ ${html}`
         </aside>
 
         <main className="main">
+          {showSettings && (
+            <section id="settings" className="workspace" style={{ marginBottom: 24, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 22 }}>
+                <div>
+                  <div className="eyebrow"><span className="pulse"></span>{ar ? 'تفضيلات المنصة' : 'PLATFORM PREFERENCES'}</div>
+                  <h1 style={{ margin: '8px 0' }}>{ar ? 'الإعدادات' : 'Settings'}</h1>
+                  <p style={{ margin: 0, color: '#64748b' }}>{ar ? 'إدارة حسابك ولغة واجهة Kermay AI.' : 'Manage your account and Kermay AI interface preferences.'}</p>
+                </div>
+                <button type="button" className="send" onClick={() => openSection('home')}>{ar ? 'العودة إلى مساحة العمل' : 'Back to workspace'}</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 16 }}>
+                <div className="workspace" style={{ padding: 20 }}>
+                  <h3 style={{ marginTop: 0 }}>{ar ? 'الحساب' : 'Account'}</h3>
+                  <p style={{ color: '#64748b', overflowWrap: 'anywhere' }}>{authUser ? authUser.email : (ar ? 'أنت تستخدم المنصة كزائر.' : 'You are using the platform as a guest.')}</p>
+                  {authUser ? (
+                    <button type="button" className="send" onClick={async () => { const { error } = await supabase.auth.signOut(); if (error) setAuthMessage(error.message); else setAuthMessage(ar ? 'تم تسجيل الخروج.' : 'You have been signed out.'); }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</button>
+                  ) : (
+                    <button type="button" className="send" onClick={() => { setAuthMessage(''); setAuthOpen(true); }}>{ar ? 'تسجيل الدخول أو إنشاء حساب' : 'Sign in or create account'}</button>
+                  )}
+                </div>
+                <div className="workspace" style={{ padding: 20 }}>
+                  <h3 style={{ marginTop: 0 }}>{ar ? 'لغة الواجهة' : 'Interface language'}</h3>
+                  <p style={{ color: '#64748b' }}>{ar ? 'اختر لغة عرض قوائم المنصة.' : 'Choose the language used by the platform menus.'}</p>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button type="button" className="send" aria-pressed={ar} onClick={() => setLanguage('ar')} style={{ opacity: ar ? 1 : .7 }}>{'العربية'}</button>
+                    <button type="button" className="send" aria-pressed={!ar} onClick={() => setLanguage('en')} style={{ opacity: ar ? .7 : 1 }}>{'English'}</button>
+                  </div>
+                </div>
+                <div className="workspace" style={{ padding: 20 }}>
+                  <h3 style={{ marginTop: 0 }}>{ar ? 'مساحة مشاريعك' : 'Your workspace'}</h3>
+                  <p style={{ color: '#64748b' }}>{ar ? 'ملخص سريع لمشاريعك المحفوظة.' : 'A quick summary of your saved projects.'}</p>
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    <div><strong style={{ display: 'block', fontSize: 26 }}>{projects.length}</strong><small>{ar ? 'المشاريع' : 'Projects'}</small></div>
+                    <div><strong style={{ display: 'block', fontSize: 26 }}>{projects.filter(project => !!project.publishedPathname).length}</strong><small>{ar ? 'المواقع المنشورة' : 'Published sites'}</small></div>
+                  </div>
+                </div>
+              </div>
+              {authMessage && <p role="status" style={{ marginTop: 18, color: '#475569' }}>{authMessage}</p>}
+            </section>
+          )}
           {showDashboard && (
             <section id="dashboard" style={{ marginBottom: 24 }}>
               <div style={{ marginBottom: 22 }}>
